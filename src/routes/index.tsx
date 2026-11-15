@@ -29,9 +29,9 @@ const cats = [
 const imgs = [phone, headphones, sneakers];
 const names = ["آيفون 16 برو ماكس 256 جيجا تيتانيوم أسود", "سماعة رأس لاسلكية بخاصية إلغاء الضوضاء", "حذاء جري رياضي خفيف للرجال أبيض", "سامسونج جالاكسي S25 ألترا 512 جيجا", "سماعة بلوتوث بعمر بطارية 40 ساعة", "كوتشي رياضي مريح للمشي", ];
 const products = Array.from({ length: 12 }, (_, k) => {
-  const price = [64999, 2499, 1899, 54999, 1299, 1499][k % 6];
-  const off = [12, 35, 20, 18, 40, 25][k % 6];
-  return { id: k, name: names[k % 6], img: imgs[k % 3], price, old: Math.round(price / (1 - off / 100)), off, rating: (4 + (k % 9) / 10).toFixed(1), reviews: 120 + k * 37, express: k % 2 === 0 };
+  const price = [64999, 2499, 1899, 54999, 1299, 1499][k % 6]!;
+  const off = [12, 35, 20, 18, 40, 25][k % 6]!;
+  return { id: k, name: names[k % 6]!, img: imgs[k % 3]!, price, old: Math.round(price / (1 - off / 100)), off, rating: (4 + (k % 9) / 10).toFixed(1), reviews: 120 + k * 37, express: k % 2 === 0 };
 });
 const fmt = (n: number) => n.toLocaleString("ar-EG");
 
