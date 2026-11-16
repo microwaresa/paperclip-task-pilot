@@ -2,11 +2,14 @@ export const FREE_SHIPPING_MIN = 200;
 export const SHIPPING_FEE = 50;
 export const MAX_QTY = 10;
 
+export type DeliverySettings = { shippingFee: number; freeShippingMin: number };
+export const DEFAULT_DELIVERY: DeliverySettings = { shippingFee: SHIPPING_FEE, freeShippingMin: FREE_SHIPPING_MIN };
+
 export type PricedLine = { price: number; qty: number };
 
-export function computeTotals(lines: PricedLine[]) {
+export function computeTotals(lines: PricedLine[], d: DeliverySettings = DEFAULT_DELIVERY) {
   const subtotal = lines.reduce((s, l) => s + l.price * l.qty, 0);
-  const shipping = subtotal === 0 || subtotal >= FREE_SHIPPING_MIN ? 0 : SHIPPING_FEE;
+  const shipping = subtotal === 0 || subtotal >= d.freeShippingMin ? 0 : d.shippingFee;
   return { subtotal, shipping, total: subtotal + shipping };
 }
 

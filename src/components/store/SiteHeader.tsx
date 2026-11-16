@@ -1,7 +1,9 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { amIAdmin } from "@/lib/admin.functions";
 import { useState, type FormEvent } from "react";
-import { Heart, LogOut, MapPin, Package, Search, ShoppingCart, Sparkles, User } from "lucide-react";
+import { Heart, LayoutDashboard, LogOut, MapPin, Package, Search, ShoppingCart, Sparkles, User } from "lucide-react";
 import { categories, fmt } from "@/lib/catalog";
 import { useCart } from "@/lib/cart";
 import { useAuth } from "@/hooks/use-auth";
@@ -16,6 +18,8 @@ export function SiteHeader({ initialQuery = "" }: { initialQuery?: string }) {
   const queryClient = useQueryClient();
   const { count, favorites } = useCart();
   const { user } = useAuth();
+  const checkAdmin = useServerFn(amIAdmin);
+  const isAdmin = useQuery({ queryKey: ["am-i-admin", user?.id], queryFn: () => checkAdmin(), enabled: !!user }).data?.isAdmin;
 
   const onSearch = (e: FormEvent) => {
     e.preventDefault();
@@ -54,6 +58,7 @@ export function SiteHeader({ initialQuery = "" }: { initialQuery?: string }) {
               <DropdownMenuLabel className="max-w-56 truncate text-xs font-normal text-muted-foreground">{user.email}</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild><Link to="/orders" search={{ placed: undefined }}><Package className="h-4 w-4" />طلباتي</Link></DropdownMenuItem>
+              {isAdmin && <DropdownMenuItem asChild><Link to="/admin"><LayoutDashboard className="h-4 w-4" />لوحة الإدارة</Link></DropdownMenuItem>}
               <DropdownMenuItem onClick={signOut}><LogOut className="h-4 w-4" />تسجيل الخروج</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

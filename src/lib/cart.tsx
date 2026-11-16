@@ -1,12 +1,15 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { getProduct, type Product } from "./catalog";
-import { clampQty, computeTotals } from "./pricing";
+import { useQuery } from "@tanstack/react-query";
+import { clampQty, computeTotals, DEFAULT_DELIVERY } from "./pricing";
+import { deliveryQuery } from "./settings.functions";
 
 type Line = { id: string; qty: number };
 type CartCtx = {
   lines: (Line & { product: Product })[];
   count: number;
   totals: ReturnType<typeof computeTotals>;
+  freeShippingMin: number;
   add: (id: string, qty?: number) => void;
   setQty: (id: string, qty: number) => void;
   remove: (id: string) => void;
@@ -32,6 +35,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [raw, setRaw] = useState<Line[]>([]);
   const [favorites, setFavorites] = useState<string[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const delivery = useQuery(deliveryQuery).data ?? DEFAULT_DELIVERY;
 
   useEffect(() => {
     setRaw(read<Line[]>(CART_KEY, []));
@@ -49,7 +53,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
     return {
       lines,
       count: lines.reduce((s, l) => s + l.qty, 0),
-      totals: computeTotals(lines.map((l) => ({ price: l.product.price, qty: l.qty }))),
+      totals: computeTotals(lines.map((l) => ({ price: l.product.price, qty: l.qty })), delivery),
+      freeShippingMin: delivery.freeShippingMin,
       add: (id, qty = 1) =>
         setRaw((r) => {
           const ex = r.find((l) => l.id === id);
@@ -61,7 +66,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       favorites,
       toggleFavorite: (id) => setFavorites((f) => (f.includes(id) ? f.filter((x) => x !== id) : [...f, id])),
     };
-  }, [raw, favorites]);
+  }, [raw, favorites, delivery]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

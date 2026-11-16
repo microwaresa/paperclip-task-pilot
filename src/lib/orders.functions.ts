@@ -24,7 +24,8 @@ export const placeOrder = createServerFn({ method: "POST" })
       if (!product) throw new Error("منتج غير متاح");
       return { id: product.id, name: product.name, price: product.price, qty: l.qty };
     });
-    const totals = computeTotals(items);
+    const { readDeliverySettings } = await import("./settings.server");
+    const totals = computeTotals(items, await readDeliverySettings());
     // Shoppers can only read orders; the server writes them so prices always come from the catalog.
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: row, error } = await supabaseAdmin

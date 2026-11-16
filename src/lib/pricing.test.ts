@@ -13,3 +13,11 @@ describe("order totals", () => {
     expect(clampQty(25)).toBe(10);
   });
 });
+
+describe("admin-set delivery fee", () => {
+  it("uses the fee and threshold the admin saved", () => {
+    const d = { shippingFee: 30, freeShippingMin: 500 };
+    expect(computeTotals([{ price: 300, qty: 1 }], d)).toEqual({ subtotal: 300, shipping: 30, total: 330 });
+    expect(computeTotals([{ price: 500, qty: 1 }], d).shipping).toBe(0);
+  });
+});
