@@ -17,3 +17,17 @@ describe("seller earnings", () => {
     expect(e.balance).toBe(200);
   });
 });
+
+describe("payout waiting period", () => {
+  const now = Date.parse("2026-11-16T12:00:00Z");
+  const line = (deliveredAt: string) => ({ price: 100, qty: 1, status: "delivered", commission_rate: 0, delivered_at: deliveredAt });
+  it("earnings delivered less than 7 days ago are held, not payable", () => {
+    const e = sellerEarnings([line("2026-11-10T12:00:01Z"), line("2026-11-09T12:00:00Z")], [], 7, now);
+    expect(e.held).toBe(100);
+    expect(e.available).toBe(100);
+    expect(e.balance).toBe(100);
+  });
+  it("a 0-day period makes all delivered earnings payable at once", () => {
+    expect(sellerEarnings([line("2026-11-16T11:59:00Z")], [], 0, now).available).toBe(100);
+  });
+});

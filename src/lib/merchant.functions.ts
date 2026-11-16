@@ -93,7 +93,7 @@ export const listMyOrderLines = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const m = await myMerchantId(context);
     const { data, error } = await context.supabase.from("order_items")
-      .select("id, order_id, product_id, name, price, qty, status, commission_rate, created_at, orders(full_name, phone, city, address, notes)")
+      .select("id, order_id, product_id, name, price, qty, status, commission_rate, delivered_at, created_at, orders(full_name, phone, city, address, notes)")
       .eq("merchant_id", m.id).order("created_at", { ascending: false }).limit(500);
     if (error) throw new Error("تعذر تحميل الطلبات");
     return data;

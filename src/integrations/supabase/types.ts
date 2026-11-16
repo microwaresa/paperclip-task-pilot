@@ -139,6 +139,7 @@ export type Database = {
         Row: {
           commission_rate: number
           created_at: string
+          delivered_at: string | null
           id: string
           merchant_id: string | null
           name: string
@@ -151,6 +152,7 @@ export type Database = {
         Insert: {
           commission_rate?: number
           created_at?: string
+          delivered_at?: string | null
           id?: string
           merchant_id?: string | null
           name: string
@@ -163,6 +165,7 @@ export type Database = {
         Update: {
           commission_rate?: number
           created_at?: string
+          delivered_at?: string | null
           id?: string
           merchant_id?: string | null
           name?: string
@@ -244,18 +247,21 @@ export type Database = {
         Row: {
           free_shipping_min: number
           id: number
+          payout_hold_days: number
           shipping_fee: number
           updated_at: string
         }
         Insert: {
           free_shipping_min?: number
           id?: number
+          payout_hold_days?: number
           shipping_fee?: number
           updated_at?: string
         }
         Update: {
           free_shipping_min?: number
           id?: number
+          payout_hold_days?: number
           shipping_fee?: number
           updated_at?: string
         }

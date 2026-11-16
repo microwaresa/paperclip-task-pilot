@@ -15,6 +15,6 @@ export async function readDeliverySettings(): Promise<DeliverySettings> {
       },
     },
   });
-  const { data } = await client.from("store_settings").select("shipping_fee, free_shipping_min").eq("id", 1).maybeSingle();
-  return data ? { shippingFee: data.shipping_fee, freeShippingMin: data.free_shipping_min } : DEFAULT_DELIVERY;
+  const { data } = await client.from("store_settings").select("shipping_fee, free_shipping_min, payout_hold_days").eq("id", 1).maybeSingle();
+  return data ? { shippingFee: data.shipping_fee, freeShippingMin: data.free_shipping_min, payoutHoldDays: data.payout_hold_days } : DEFAULT_DELIVERY;
 }

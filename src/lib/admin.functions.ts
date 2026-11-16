@@ -52,12 +52,12 @@ export const adminUpdateStatus = createServerFn({ method: "POST" })
 
 export const adminUpdateDelivery = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i: { shippingFee: number; freeShippingMin: number }) =>
-    z.object({ shippingFee: z.number().int().min(0).max(1000), freeShippingMin: z.number().int().min(0).max(100000) }).parse(i))
+  .inputValidator((i: { shippingFee: number; freeShippingMin: number; payoutHoldDays: number }) =>
+    z.object({ shippingFee: z.number().int().min(0).max(1000), freeShippingMin: z.number().int().min(0).max(100000), payoutHoldDays: z.number().int().min(0).max(90) }).parse(i))
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
     const { error } = await context.supabase.from("store_settings")
-      .update({ shipping_fee: data.shippingFee, free_shipping_min: data.freeShippingMin, updated_at: new Date().toISOString() })
+      .update({ shipping_fee: data.shippingFee, free_shipping_min: data.freeShippingMin, payout_hold_days: data.payoutHoldDays, updated_at: new Date().toISOString() })
       .eq("id", 1);
     if (error) throw new Error("تعذر حفظ الإعدادات");
     return { ok: true };
@@ -100,7 +100,7 @@ export const adminMerchantLedger = createServerFn({ method: "GET" })
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
     const [lines, payouts] = await Promise.all([
-      context.supabase.from("order_items").select("price, qty, status, commission_rate").eq("merchant_id", data.id),
+      context.supabase.from("order_items").select("price, qty, status, commission_rate, delivered_at").eq("merchant_id", data.id),
       context.supabase.from("merchant_payouts").select("id, amount, note, created_at").eq("merchant_id", data.id).order("created_at", { ascending: false }),
     ]);
     if (lines.error || payouts.error) throw new Error("تعذر تحميل الأرباح");

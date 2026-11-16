@@ -8,6 +8,8 @@
 - [x] Lovable Cloud: sign-in/sign-up, orders saved per account, "My orders" page
 - [x] AI shopping assistant page
 - [x] Per-seller commission (starts 0%), seller earnings, admin-recorded payouts
+- [x] Configurable payout waiting period (default 7 days after delivery)
+- [ ] Create first real store with products, photos, prices; test order through tracker
 - [ ] Verify signed-in checkout end-to-end (blocked: no store account exists yet)
 - [x] Marketplace: seller sign-up + admin approval, seller products/orders/sales dashboard, public store pages
 - [ ] Verify the seller flow end-to-end signed in (apply → approve → add product → order → ship)

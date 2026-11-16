@@ -47,31 +47,35 @@ function DeliveryForm() {
   const { data } = useQuery(deliveryQuery);
   const [fee, setFee] = useState("");
   const [min, setMin] = useState("");
+  const [hold, setHold] = useState("");
   const [busy, setBusy] = useState(false);
-  useEffect(() => { if (data) { setFee(String(data.shippingFee)); setMin(String(data.freeShippingMin)); } }, [data]);
+  useEffect(() => { if (data) { setFee(String(data.shippingFee)); setMin(String(data.freeShippingMin)); setHold(String(data.payoutHoldDays ?? 7)); } }, [data]);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
-    const shippingFee = Number(fee), freeShippingMin = Number(min);
-    if (!Number.isInteger(shippingFee) || !Number.isInteger(freeShippingMin) || shippingFee < 0 || freeShippingMin < 0) {
+    const shippingFee = Number(fee), freeShippingMin = Number(min), payoutHoldDays = Number(hold);
+    if (![shippingFee, freeShippingMin, payoutHoldDays].every((n) => Number.isInteger(n) && n >= 0) || payoutHoldDays > 90) {
       toast.error("أدخل أرقامًا صحيحة"); return;
     }
     setBusy(true);
     try {
-      await save({ data: { shippingFee, freeShippingMin } });
+      await save({ data: { shippingFee, freeShippingMin, payoutHoldDays } });
       await qc.invalidateQueries({ queryKey: deliveryQuery.queryKey });
-      toast.success("تم حفظ رسوم التوصيل");
+      toast.success("تم حفظ الإعدادات");
     } catch (err) { toast.error((err as Error).message); } finally { setBusy(false); }
   }
 
   return (
     <form onSubmit={onSubmit} className="flex flex-wrap items-end gap-3 rounded-lg bg-card p-4">
-      <h2 className="w-full text-lg font-black">رسوم التوصيل</h2>
+      <h2 className="w-full text-lg font-black">رسوم التوصيل ودفعات البائعين</h2>
       <label className="text-sm font-bold">رسوم التوصيل (ج.م)
         <input aria-label="رسوم التوصيل" type="number" min={0} value={fee} onChange={(e) => setFee(e.target.value)} className="mt-1 block w-32 rounded-md border bg-background px-3 py-2" />
       </label>
       <label className="text-sm font-bold">توصيل مجاني من (ج.م)
         <input aria-label="الحد الأدنى للتوصيل المجاني" type="number" min={0} value={min} onChange={(e) => setMin(e.target.value)} className="mt-1 block w-32 rounded-md border bg-background px-3 py-2" />
+      </label>
+      <label className="text-sm font-bold">مدة انتظار أرباح البائع (أيام بعد التوصيل)
+        <input aria-label="مدة انتظار الأرباح بالأيام" type="number" min={0} max={90} value={hold} onChange={(e) => setHold(e.target.value)} className="mt-1 block w-32 rounded-md border bg-background px-3 py-2" />
       </label>
       <button disabled={busy} className="rounded-md bg-primary px-4 py-2 font-bold text-primary-foreground disabled:opacity-50">حفظ</button>
     </form>
@@ -188,7 +192,8 @@ function MerchantLedger({ id, rate }: { id: string; rate: number }) {
   const [r, setR] = useState(String(rate));
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
-  const e = data ? sellerEarnings(data.lines, data.payouts) : null;
+  const { data: settings } = useQuery(deliveryQuery);
+  const e = data ? sellerEarnings(data.lines, data.payouts, settings?.payoutHoldDays ?? 7) : null;
   async function run(fn: () => Promise<unknown>, ok: string) {
     try { await fn(); await Promise.all([qc.invalidateQueries({ queryKey: key }), qc.invalidateQueries({ queryKey: ["admin-merchants"] })]); toast.success(ok); }
     catch (err) { toast.error((err as Error).message); }
@@ -216,7 +221,7 @@ function MerchantLedger({ id, rate }: { id: string; rate: number }) {
       </form>
       {!e ? <p>جارٍ التحميل...</p> : (
         <>
-          <p>مبيعات مُسلّمة {fmt(e.gross)} · عمولة {fmt(e.commission)} · صافي البائع {fmt(e.net)} · مدفوع {fmt(e.paid)} · <b>المستحق {fmt(e.balance)} ج.م</b></p>
+          <p>مبيعات مُسلّمة {fmt(e.gross)} · عمولة {fmt(e.commission)} · صافي البائع {fmt(e.net)} · قيد الانتظار {fmt(e.held)} · مدفوع {fmt(e.paid)} · <b>المستحق {fmt(e.balance)} ج.م</b></p>
           <form onSubmit={onPay} className="flex flex-wrap items-center gap-2">
             <input aria-label="مبلغ الدفعة" type="number" min={1} step="0.01" placeholder="المبلغ" value={amount} onChange={(x) => setAmount(x.target.value)} className={`${box} w-28`} />
             <input aria-label="ملاحظة" placeholder="ملاحظة (مثلاً تحويل بنكي)" value={note} maxLength={200} onChange={(x) => setNote(x.target.value)} className={`${box} flex-1`} />

@@ -11,6 +11,7 @@ import {
 } from "@/lib/merchant.functions";
 import { nextSellerStatus, sellerEarnings, sellerSummary } from "@/lib/merchant-stats";
 import { NO_IMAGE } from "@/lib/market";
+import { deliveryQuery } from "@/lib/settings.functions";
 import { StoreLayout } from "@/components/store/StoreLayout";
 
 const merchantQuery = queryOptions({ queryKey: ["my-merchant"], queryFn: () => getMyMerchant() });
@@ -147,22 +148,25 @@ function Summary() {
   );
 }
 
-function Earnings({ lines }: { lines: { price: number; qty: number; status: string; commission_rate: number }[] }) {
+function Earnings({ lines }: { lines: { price: number; qty: number; status: string; commission_rate: number; delivered_at: string | null }[] }) {
   const { data: merchant } = useSuspenseQuery(merchantQuery);
   const { data: payouts = [] } = useQuery(payoutsQuery);
-  const e = sellerEarnings(lines, payouts);
+  const { data: settings } = useQuery(deliveryQuery);
+  const hold = settings?.payoutHoldDays ?? 7;
+  const e = sellerEarnings(lines, payouts, hold);
   const cards = [
     { l: "إجمالي المبيعات المُسلّمة", v: e.gross },
     { l: `عمولة سين (${fmt(Number(merchant?.commission_rate ?? 0))}٪)`, v: e.commission },
     { l: "صافي أرباحك", v: e.net },
+    { l: `قيد الانتظار (${fmt(hold)} أيام)`, v: e.held },
     { l: "تم دفعه لك", v: e.paid },
     { l: "رصيدك المستحق", v: e.balance, strong: true },
   ];
   return (
     <section className="rounded-lg bg-card p-4">
       <h2 className="mb-1 font-black">أرباحك والدفعات</h2>
-      <p className="mb-3 text-xs text-muted-foreground">تُحتسب الأرباح بعد توصيل الطلب. تحوّل إدارة سين رصيدك وتسجّل كل دفعة هنا.</p>
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+      <p className="mb-3 text-xs text-muted-foreground">تصبح أرباح كل طلب قابلة للصرف بعد {fmt(hold)} أيام من توصيله. تحوّل إدارة سين رصيدك وتسجّل كل دفعة هنا.</p>
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-6">
         {cards.map((c) => <div key={c.l} className={`rounded-lg p-3 ${c.strong ? "bg-secondary text-secondary-foreground" : "bg-muted"}`}><div className="text-xs opacity-80">{c.l}</div><div className="mt-1 text-lg font-black">{fmt(c.v)} ج.م</div></div>)}
       </div>
       {payouts.length > 0 && (

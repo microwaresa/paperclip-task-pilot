@@ -2,8 +2,9 @@ export const FREE_SHIPPING_MIN = 200;
 export const SHIPPING_FEE = 50;
 export const MAX_QTY = 10;
 
-export type DeliverySettings = { shippingFee: number; freeShippingMin: number };
-export const DEFAULT_DELIVERY: DeliverySettings = { shippingFee: SHIPPING_FEE, freeShippingMin: FREE_SHIPPING_MIN };
+export const PAYOUT_HOLD_DAYS = 7;
+export type DeliverySettings = { shippingFee: number; freeShippingMin: number; payoutHoldDays?: number };
+export const DEFAULT_DELIVERY: DeliverySettings = { shippingFee: SHIPPING_FEE, freeShippingMin: FREE_SHIPPING_MIN, payoutHoldDays: PAYOUT_HOLD_DAYS };
 
 export type PricedLine = { price: number; qty: number };
 
