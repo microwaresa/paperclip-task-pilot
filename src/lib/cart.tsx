@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, type Context, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { getProduct, isSellerProductId, type Product } from "./catalog";
 import { sellerProductsQuery } from "./market.functions";
 import { useQuery } from "@tanstack/react-query";
@@ -21,7 +21,9 @@ type CartCtx = {
   toggleFavorite: (id: string) => void;
 };
 
-const Ctx = createContext<CartCtx | null>(null);
+// Keep one context object across hot reloads so a reloaded module still finds the mounted provider.
+const g = globalThis as unknown as { __seenCartCtx?: Context<CartCtx | null> };
+const Ctx = (g.__seenCartCtx ??= createContext<CartCtx | null>(null));
 const CART_KEY = "seen-cart";
 const FAV_KEY = "seen-favorites";
 
