@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { getProduct, type Product } from "@/lib/catalog";
+import { type Product } from "@/lib/catalog";
 import { useCart } from "@/lib/cart";
 import { StoreLayout } from "@/components/store/StoreLayout";
 import { ProductGrid } from "@/components/store/ProductCard";
@@ -20,8 +20,8 @@ export const Route = createFileRoute("/favorites")({
 });
 
 function FavoritesPage() {
-  const { favorites } = useCart();
-  const items = favorites.map(getProduct).filter((x): x is Product => !!x);
+  const { favorites, findProduct } = useCart();
+  const items = favorites.map(findProduct).filter((x): x is Product => !!x);
   return (
     <StoreLayout>
       <section className="rounded-lg bg-card p-4">

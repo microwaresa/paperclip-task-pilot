@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { getProduct, type Product } from "./catalog";
+import { getProduct, isSellerProductId, type Product } from "./catalog";
+import { sellerProductsQuery } from "./market.functions";
 import { useQuery } from "@tanstack/react-query";
 import { clampQty, computeTotals, DEFAULT_DELIVERY } from "./pricing";
 import { deliveryQuery } from "./settings.functions";
@@ -7,6 +8,8 @@ import { deliveryQuery } from "./settings.functions";
 type Line = { id: string; qty: number };
 type CartCtx = {
   lines: (Line & { product: Product })[];
+  /** Products the shopper saved, including seller products loaded from the store. */
+  findProduct: (id: string) => Product | undefined;
   count: number;
   totals: ReturnType<typeof computeTotals>;
   freeShippingMin: number;
@@ -36,6 +39,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [favorites, setFavorites] = useState<string[]>([]);
   const [loaded, setLoaded] = useState(false);
   const delivery = useQuery(deliveryQuery).data ?? DEFAULT_DELIVERY;
+  const sellerIds = useMemo(() => [...new Set([...raw.map((l) => l.id), ...favorites])].filter(isSellerProductId).sort(), [raw, favorites]);
+  const sellerProducts = useQuery({ ...sellerProductsQuery({ ids: sellerIds }), enabled: sellerIds.length > 0 }).data;
 
   useEffect(() => {
     setRaw(read<Line[]>(CART_KEY, []));
@@ -47,11 +52,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<CartCtx>(() => {
     const lines = raw.flatMap((l) => {
-      const product = getProduct(l.id);
+      const product = getProduct(l.id) ?? sellerProducts?.find((x) => x.id === l.id);
       return product ? [{ ...l, product }] : [];
     });
     return {
       lines,
+      findProduct: (id: string) => getProduct(id) ?? sellerProducts?.find((x) => x.id === id),
       count: lines.reduce((s, l) => s + l.qty, 0),
       totals: computeTotals(lines.map((l) => ({ price: l.product.price, qty: l.qty })), delivery),
       freeShippingMin: delivery.freeShippingMin,
@@ -66,7 +72,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       favorites,
       toggleFavorite: (id) => setFavorites((f) => (f.includes(id) ? f.filter((x) => x !== id) : [...f, id])),
     };
-  }, [raw, favorites, delivery]);
+  }, [raw, favorites, delivery, sellerProducts]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

@@ -14,6 +14,140 @@ export type Database = {
   }
   public: {
     Tables: {
+      merchant_products: {
+        Row: {
+          active: boolean
+          brand: string
+          category: string
+          created_at: string
+          description: string
+          id: string
+          image_url: string | null
+          merchant_id: string
+          name: string
+          old_price: number | null
+          price: number
+          stock: number
+        }
+        Insert: {
+          active?: boolean
+          brand?: string
+          category: string
+          created_at?: string
+          description?: string
+          id?: string
+          image_url?: string | null
+          merchant_id: string
+          name: string
+          old_price?: number | null
+          price: number
+          stock?: number
+        }
+        Update: {
+          active?: boolean
+          brand?: string
+          category?: string
+          created_at?: string
+          description?: string
+          id?: string
+          image_url?: string | null
+          merchant_id?: string
+          name?: string
+          old_price?: number | null
+          price?: number
+          stock?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "merchant_products_merchant_id_fkey"
+            columns: ["merchant_id"]
+            isOneToOne: false
+            referencedRelation: "merchants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      merchants: {
+        Row: {
+          created_at: string
+          description: string
+          id: string
+          slug: string
+          status: string
+          store_name: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string
+          id?: string
+          slug: string
+          status?: string
+          store_name: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          id?: string
+          slug?: string
+          status?: string
+          store_name?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      order_items: {
+        Row: {
+          created_at: string
+          id: string
+          merchant_id: string | null
+          name: string
+          order_id: string
+          price: number
+          product_id: string
+          qty: number
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          merchant_id?: string | null
+          name: string
+          order_id: string
+          price: number
+          product_id: string
+          qty: number
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          merchant_id?: string | null
+          name?: string
+          order_id?: string
+          price?: number
+          product_id?: string
+          qty?: number
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_items_merchant_id_fkey"
+            columns: ["merchant_id"]
+            isOneToOne: false
+            referencedRelation: "merchants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       orders: {
         Row: {
           address: string
@@ -115,6 +249,18 @@ export type Database = {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      merchant_in_order: { Args: { _order_id: string }; Returns: boolean }
+      merchant_is_approved: { Args: { _merchant_id: string }; Returns: boolean }
+      owns_merchant: { Args: { _merchant_id: string }; Returns: boolean }
+      owns_order: { Args: { _order_id: string }; Returns: boolean }
+      return_stock: {
+        Args: { _product_id: string; _qty: number }
+        Returns: undefined
+      }
+      take_stock: {
+        Args: { _product_id: string; _qty: number }
         Returns: boolean
       }
     }

@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { amIAdmin } from "@/lib/admin.functions";
 import { useState, type FormEvent } from "react";
-import { Heart, LayoutDashboard, LogOut, MapPin, Package, Search, ShoppingCart, Sparkles, User } from "lucide-react";
+import { Heart, LayoutDashboard, LogOut, MapPin, Package, Search, ShoppingCart, Sparkles, Store, User } from "lucide-react";
 import { categories, fmt } from "@/lib/catalog";
 import { useCart } from "@/lib/cart";
 import { useAuth } from "@/hooks/use-auth";
@@ -58,6 +58,7 @@ export function SiteHeader({ initialQuery = "" }: { initialQuery?: string }) {
               <DropdownMenuLabel className="max-w-56 truncate text-xs font-normal text-muted-foreground">{user.email}</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild><Link to="/orders" search={{ placed: undefined }}><Package className="h-4 w-4" />طلباتي</Link></DropdownMenuItem>
+              <DropdownMenuItem asChild><Link to="/merchant"><Store className="h-4 w-4" />متجري (للبائعين)</Link></DropdownMenuItem>
               {isAdmin && <DropdownMenuItem asChild><Link to="/admin"><LayoutDashboard className="h-4 w-4" />لوحة الإدارة</Link></DropdownMenuItem>}
               <DropdownMenuItem onClick={signOut}><LogOut className="h-4 w-4" />تسجيل الخروج</DropdownMenuItem>
             </DropdownMenuContent>
@@ -74,6 +75,7 @@ export function SiteHeader({ initialQuery = "" }: { initialQuery?: string }) {
             <Link key={c.slug} to="/category/$slug" params={{ slug: c.slug }} className="whitespace-nowrap hover:text-accent" activeProps={{ className: "text-accent" }}>{c.name}</Link>
           ))}
           <Link to="/search" search={{ q: "", sort: "discount" }} className="whitespace-nowrap text-destructive">العروض</Link>
+          <Link to="/sell" className="whitespace-nowrap font-bold hover:text-accent">بِع على سين</Link>
           <Link to="/assistant" className="flex items-center gap-1 whitespace-nowrap text-accent"><Sparkles className="h-4 w-4" />مساعد التسوق</Link>
         </div>
       </nav>

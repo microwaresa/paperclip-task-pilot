@@ -5,6 +5,8 @@ import { fmt, getCategory, productsInCategory } from "@/lib/catalog";
 import { StoreLayout } from "@/components/store/StoreLayout";
 import { ProductGrid } from "@/components/store/ProductCard";
 import { sortProducts, sorts } from "@/lib/sorting";
+import { useQuery } from "@tanstack/react-query";
+import { sellerProductsQuery } from "@/lib/market.functions";
 
 export const Route = createFileRoute("/category/$slug")({
   validateSearch: zodValidator(z.object({ sort: fallback(z.string(), "relevance").default("relevance") })),
@@ -44,7 +46,8 @@ export const Route = createFileRoute("/category/$slug")({
 function CategoryPage() {
   const { category } = Route.useLoaderData();
   const { sort } = Route.useSearch();
-  const items = sortProducts(productsInCategory(category.slug), sort);
+  const sellers = useQuery(sellerProductsQuery({ category: category.slug })).data ?? [];
+  const items = sortProducts([...productsInCategory(category.slug), ...sellers], sort);
   return (
     <StoreLayout>
       <nav className="text-xs text-muted-foreground"><Link to="/">الرئيسية</Link> / <span className="text-foreground">{category.name}</span></nav>

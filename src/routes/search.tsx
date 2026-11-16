@@ -3,6 +3,8 @@ import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { z } from "zod";
 import { fmt, searchProducts } from "@/lib/catalog";
 import { sortProducts, sorts } from "@/lib/sorting";
+import { useQuery } from "@tanstack/react-query";
+import { sellerProductsQuery } from "@/lib/market.functions";
 import { StoreLayout } from "@/components/store/StoreLayout";
 import { ProductGrid } from "@/components/store/ProductCard";
 
@@ -29,7 +31,8 @@ export const Route = createFileRoute("/search")({
 function SearchPage() {
   const { q, sort } = Route.useSearch();
   const query = q.slice(0, 100);
-  const results = sortProducts(searchProducts(query), sort);
+  const sellers = useQuery(sellerProductsQuery({ q: query })).data ?? [];
+  const results = sortProducts([...searchProducts(query), ...sellers], sort);
   return (
     <StoreLayout query={query}>
       <section className="rounded-lg bg-card p-4">

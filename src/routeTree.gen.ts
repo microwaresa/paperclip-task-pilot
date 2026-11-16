@@ -17,11 +17,14 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as CartRouteImport } from './routes/cart'
 import { Route as FavoritesRouteImport } from './routes/favorites'
 import { Route as SearchRouteImport } from './routes/search'
+import { Route as SellRouteImport } from './routes/sell'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedCheckoutRouteImport } from './routes/_authenticated/checkout'
+import { Route as AuthenticatedMerchantRouteImport } from './routes/_authenticated/merchant'
 import { Route as AuthenticatedOrdersRouteImport } from './routes/_authenticated/orders'
 import { Route as CategorySlugRouteImport } from './routes/category.$slug'
 import { Route as ProductIdRouteImport } from './routes/product.$id'
+import { Route as StoreSlugRouteImport } from './routes/store.$slug'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -62,6 +65,11 @@ const SearchRoute = SearchRouteImport.update({
   path: '/search',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SellRoute = SellRouteImport.update({
+  id: '/sell',
+  path: '/sell',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
   id: '/admin',
   path: '/admin',
@@ -70,6 +78,11 @@ const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
 const AuthenticatedCheckoutRoute = AuthenticatedCheckoutRouteImport.update({
   id: '/checkout',
   path: '/checkout',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedMerchantRoute = AuthenticatedMerchantRouteImport.update({
+  id: '/merchant',
+  path: '/merchant',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedOrdersRoute = AuthenticatedOrdersRouteImport.update({
@@ -87,6 +100,11 @@ const ProductIdRoute = ProductIdRouteImport.update({
   path: '/product/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const StoreSlugRoute = StoreSlugRouteImport.update({
+  id: '/store/$slug',
+  path: '/store/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -96,11 +114,14 @@ export interface FileRoutesByFullPath {
   '/cart': typeof CartRoute
   '/favorites': typeof FavoritesRoute
   '/search': typeof SearchRoute
+  '/sell': typeof SellRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/checkout': typeof AuthenticatedCheckoutRoute
+  '/merchant': typeof AuthenticatedMerchantRoute
   '/orders': typeof AuthenticatedOrdersRoute
   '/category/$slug': typeof CategorySlugRoute
   '/product/$id': typeof ProductIdRoute
+  '/store/$slug': typeof StoreSlugRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -110,11 +131,14 @@ export interface FileRoutesByTo {
   '/cart': typeof CartRoute
   '/favorites': typeof FavoritesRoute
   '/search': typeof SearchRoute
+  '/sell': typeof SellRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/checkout': typeof AuthenticatedCheckoutRoute
+  '/merchant': typeof AuthenticatedMerchantRoute
   '/orders': typeof AuthenticatedOrdersRoute
   '/category/$slug': typeof CategorySlugRoute
   '/product/$id': typeof ProductIdRoute
+  '/store/$slug': typeof StoreSlugRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -126,11 +150,14 @@ export interface FileRoutesById {
   '/cart': typeof CartRoute
   '/favorites': typeof FavoritesRoute
   '/search': typeof SearchRoute
+  '/sell': typeof SellRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/checkout': typeof AuthenticatedCheckoutRoute
+  '/_authenticated/merchant': typeof AuthenticatedMerchantRoute
   '/_authenticated/orders': typeof AuthenticatedOrdersRoute
   '/category/$slug': typeof CategorySlugRoute
   '/product/$id': typeof ProductIdRoute
+  '/store/$slug': typeof StoreSlugRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -142,11 +169,14 @@ export interface FileRouteTypes {
     | '/cart'
     | '/favorites'
     | '/search'
+    | '/sell'
     | '/admin'
     | '/checkout'
+    | '/merchant'
     | '/orders'
     | '/category/$slug'
     | '/product/$id'
+    | '/store/$slug'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -156,11 +186,14 @@ export interface FileRouteTypes {
     | '/cart'
     | '/favorites'
     | '/search'
+    | '/sell'
     | '/admin'
     | '/checkout'
+    | '/merchant'
     | '/orders'
     | '/category/$slug'
     | '/product/$id'
+    | '/store/$slug'
   id:
     | '__root__'
     | '/'
@@ -171,11 +204,14 @@ export interface FileRouteTypes {
     | '/cart'
     | '/favorites'
     | '/search'
+    | '/sell'
     | '/_authenticated/admin'
     | '/_authenticated/checkout'
+    | '/_authenticated/merchant'
     | '/_authenticated/orders'
     | '/category/$slug'
     | '/product/$id'
+    | '/store/$slug'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -187,8 +223,10 @@ export interface RootRouteChildren {
   CartRoute: typeof CartRoute
   FavoritesRoute: typeof FavoritesRoute
   SearchRoute: typeof SearchRoute
+  SellRoute: typeof SellRoute
   CategorySlugRoute: typeof CategorySlugRoute
   ProductIdRoute: typeof ProductIdRoute
+  StoreSlugRoute: typeof StoreSlugRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -249,6 +287,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SearchRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/sell': {
+      id: '/sell'
+      path: '/sell'
+      fullPath: '/sell'
+      preLoaderRoute: typeof SellRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/admin': {
       id: '/_authenticated/admin'
       path: '/admin'
@@ -261,6 +306,13 @@ declare module '@tanstack/react-router' {
       path: '/checkout'
       fullPath: '/checkout'
       preLoaderRoute: typeof AuthenticatedCheckoutRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/merchant': {
+      id: '/_authenticated/merchant'
+      path: '/merchant'
+      fullPath: '/merchant'
+      preLoaderRoute: typeof AuthenticatedMerchantRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/orders': {
@@ -284,18 +336,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProductIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/store/$slug': {
+      id: '/store/$slug'
+      path: '/store/$slug'
+      fullPath: '/store/$slug'
+      preLoaderRoute: typeof StoreSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
   AuthenticatedCheckoutRoute: typeof AuthenticatedCheckoutRoute
+  AuthenticatedMerchantRoute: typeof AuthenticatedMerchantRoute
   AuthenticatedOrdersRoute: typeof AuthenticatedOrdersRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRoute: AuthenticatedAdminRoute,
   AuthenticatedCheckoutRoute: AuthenticatedCheckoutRoute,
+  AuthenticatedMerchantRoute: AuthenticatedMerchantRoute,
   AuthenticatedOrdersRoute: AuthenticatedOrdersRoute,
 }
 
@@ -311,8 +372,10 @@ const rootRouteChildren: RootRouteChildren = {
   CartRoute: CartRoute,
   FavoritesRoute: FavoritesRoute,
   SearchRoute: SearchRoute,
+  SellRoute: SellRoute,
   CategorySlugRoute: CategorySlugRoute,
   ProductIdRoute: ProductIdRoute,
+  StoreSlugRoute: StoreSlugRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

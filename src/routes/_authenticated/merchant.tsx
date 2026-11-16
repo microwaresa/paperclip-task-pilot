@@ -1,0 +1,318 @@
+import { createFileRoute, Link, useRouter, type ErrorComponentProps } from "@tanstack/react-router";
+import { queryOptions, useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { useState, type FormEvent } from "react";
+import { toast } from "sonner";
+import { Clock, ExternalLink, Pencil, Plus, Trash2 } from "lucide-react";
+import { categories, fmt } from "@/lib/catalog";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  advanceOrderLine, applyAsMerchant, deleteProduct, getMyMerchant, listMyOrderLines, listMyProducts, saveProduct, updateMyStore,
+} from "@/lib/merchant.functions";
+import { nextSellerStatus, sellerSummary } from "@/lib/merchant-stats";
+import { NO_IMAGE } from "@/lib/market";
+import { StoreLayout } from "@/components/store/StoreLayout";
+
+const merchantQuery = queryOptions({ queryKey: ["my-merchant"], queryFn: () => getMyMerchant() });
+const productsQuery = queryOptions({ queryKey: ["my-products"], queryFn: () => listMyProducts() });
+const linesQuery = queryOptions({ queryKey: ["my-order-lines"], queryFn: () => listMyOrderLines(), refetchInterval: 30_000 });
+const statusLabel: Record<string, string> = { pending: "بانتظار الشحن", shipped: "تم الشحن", delivered: "تم التوصيل", cancelled: "ملغي" };
+const input = "mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm";
+
+export const Route = createFileRoute("/_authenticated/merchant")({
+  loader: ({ context }) => context.queryClient.ensureQueryData(merchantQuery),
+  head: () => ({
+    meta: [
+      { title: "لوحة البائع | سين" },
+      { name: "description", content: "إدارة متجرك على سين: المنتجات والطلبات والمبيعات." },
+      { property: "og:title", content: "لوحة البائع | سين" },
+      { property: "og:description", content: "إدارة متجرك على سين." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+      { name: "robots", content: "noindex" },
+    ],
+  }),
+  component: MerchantPage,
+  errorComponent: MerchantError,
+});
+
+function MerchantError({ error, reset }: ErrorComponentProps) {
+  const router = useRouter();
+  return (
+    <StoreLayout>
+      <div className="rounded-lg bg-card py-16 text-center">
+        <p className="font-bold">{(error as Error)?.message || "تعذر فتح لوحة البائع"}</p>
+        <button onClick={() => { router.invalidate(); reset(); }} className="mt-4 rounded-md bg-primary px-4 py-2 font-bold text-primary-foreground">حاول مرة أخرى</button>
+      </div>
+    </StoreLayout>
+  );
+}
+
+function MerchantPage() {
+  const { data: merchant } = useSuspenseQuery(merchantQuery);
+  return (
+    <StoreLayout>
+      {!merchant ? <ApplyForm /> : merchant.status !== "approved" ? (
+        <div className="rounded-lg bg-card p-8 text-center">
+          <Clock className="mx-auto h-10 w-10 text-accent" />
+          <h1 className="mt-3 text-xl font-black">{merchant.status === "pending" ? "طلبك قيد المراجعة" : "متجرك موقوف"}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {merchant.status === "pending" ? `استلمنا طلب فتح متجر «${merchant.store_name}». ستتمكن من إضافة المنتجات بعد موافقة الإدارة.` : "تواصل مع إدارة سين لمعرفة السبب."}
+          </p>
+        </div>
+      ) : <Dashboard merchant={merchant} />}
+    </StoreLayout>
+  );
+}
+
+function ApplyForm() {
+  const qc = useQueryClient();
+  const apply = useServerFn(applyAsMerchant);
+  const [storeName, setStoreName] = useState("");
+  const [slug, setSlug] = useState("");
+  const [description, setDescription] = useState("");
+  const [busy, setBusy] = useState(false);
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    if (!/^[a-z0-9-]{3,40}$/.test(slug)) { toast.error("رابط المتجر: حروف إنجليزية صغيرة وأرقام و - فقط (٣ أحرف على الأقل)"); return; }
+    setBusy(true);
+    try {
+      await apply({ data: { storeName, slug, description } });
+      await qc.invalidateQueries({ queryKey: merchantQuery.queryKey });
+      toast.success("تم إرسال طلبك");
+    } catch (err) { toast.error((err as Error).message); } finally { setBusy(false); }
+  }
+  return (
+    <form onSubmit={submit} className="mx-auto w-full max-w-lg space-y-3 rounded-lg bg-card p-6">
+      <h1 className="text-2xl font-black">افتح متجرك على سين</h1>
+      <p className="text-sm text-muted-foreground">املأ البيانات وستراجع الإدارة طلبك.</p>
+      <label className="block text-sm font-bold">اسم المتجر<input required minLength={2} maxLength={60} value={storeName} onChange={(e) => setStoreName(e.target.value)} className={input} /></label>
+      <label className="block text-sm font-bold">رابط المتجر (بالإنجليزية)
+        <input required dir="ltr" placeholder="my-store" value={slug} onChange={(e) => setSlug(e.target.value.toLowerCase())} className={input} />
+        <span className="mt-1 block text-xs font-normal text-muted-foreground" dir="ltr">/store/{slug || "my-store"}</span>
+      </label>
+      <label className="block text-sm font-bold">وصف المتجر<textarea maxLength={500} rows={3} value={description} onChange={(e) => setDescription(e.target.value)} className={input} /></label>
+      <button disabled={busy} className="w-full rounded-md bg-primary py-2.5 font-black text-primary-foreground disabled:opacity-60">{busy ? "جارٍ..." : "إرسال الطلب"}</button>
+    </form>
+  );
+}
+
+type Merchant = NonNullable<Awaited<ReturnType<typeof getMyMerchant>>>;
+const tabs = [{ v: "summary", l: "ملخص المبيعات" }, { v: "orders", l: "الطلبات" }, { v: "products", l: "المنتجات" }, { v: "store", l: "بيانات المتجر" }] as const;
+
+function Dashboard({ merchant }: { merchant: Merchant }) {
+  const [tab, setTab] = useState<(typeof tabs)[number]["v"]>("summary");
+  return (
+    <>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-2xl font-black">لوحة البائع · {merchant.store_name}</h1>
+        <Link to="/store/$slug" params={{ slug: merchant.slug }} className="flex items-center gap-1 text-sm font-bold text-accent"><ExternalLink className="h-4 w-4" />صفحة متجري</Link>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {tabs.map((t) => <button key={t.v} onClick={() => setTab(t.v)} className={`rounded-full px-4 py-1.5 text-sm font-bold ${tab === t.v ? "bg-primary text-primary-foreground" : "bg-card"}`}>{t.l}</button>)}
+      </div>
+      {tab === "summary" && <Summary />}
+      {tab === "orders" && <Orders />}
+      {tab === "products" && <Products />}
+      {tab === "store" && <StoreSettings merchant={merchant} />}
+    </>
+  );
+}
+
+function Summary() {
+  const { data, isLoading } = useQuery(linesQuery);
+  if (isLoading || !data) return <p className="rounded-lg bg-card py-12 text-center">جارٍ التحميل...</p>;
+  const s = sellerSummary(data);
+  const cards = [
+    { l: "مبيعات تم توصيلها", v: `${fmt(s.deliveredRevenue)} ج.م` },
+    { l: "مبيعات جارية", v: `${fmt(s.openRevenue)} ج.م` },
+    { l: "عدد الطلبات", v: fmt(s.orders) },
+    { l: "قطع مباعة", v: fmt(s.units) },
+    { l: "بانتظار الشحن", v: fmt(s.toShip) },
+  ];
+  return (
+    <>
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+        {cards.map((c) => <div key={c.l} className="rounded-lg bg-card p-4"><div className="text-xs text-muted-foreground">{c.l}</div><div className="mt-1 text-xl font-black">{c.v}</div></div>)}
+      </div>
+      <section className="rounded-lg bg-card p-4">
+        <h2 className="mb-2 font-black">الأكثر مبيعًا</h2>
+        {s.top.length === 0 ? <p className="text-sm text-muted-foreground">لا توجد مبيعات بعد</p> : (
+          <ul className="divide-y text-sm">{s.top.map((t) => <li key={t.name} className="flex justify-between py-2"><span>{t.name}</span><span className="font-bold">{fmt(t.qty)} قطعة · {fmt(t.revenue)} ج.م</span></li>)}</ul>
+        )}
+      </section>
+    </>
+  );
+}
+
+function Orders() {
+  const qc = useQueryClient();
+  const { data, isLoading } = useQuery(linesQuery);
+  const advance = useServerFn(advanceOrderLine);
+  const [filter, setFilter] = useState("pending");
+  if (isLoading || !data) return <p className="rounded-lg bg-card py-12 text-center">جارٍ التحميل...</p>;
+  const shown = filter === "all" ? data : data.filter((l) => l.status === filter);
+  async function move(id: string) {
+    try {
+      await advance({ data: { id } });
+      await qc.invalidateQueries({ queryKey: linesQuery.queryKey });
+      toast.success("تم تحديث حالة الطلب");
+    } catch (err) { toast.error((err as Error).message); }
+  }
+  return (
+    <>
+      <div className="flex flex-wrap gap-2">
+        {["pending", "shipped", "delivered", "cancelled", "all"].map((s) => (
+          <button key={s} onClick={() => setFilter(s)} className={`rounded-full px-3 py-1 text-sm font-bold ${filter === s ? "bg-secondary text-secondary-foreground" : "bg-card"}`}>{s === "all" ? "الكل" : statusLabel[s]}</button>
+        ))}
+      </div>
+      {shown.length === 0 ? <p className="rounded-lg bg-card py-12 text-center font-bold">لا توجد طلبات</p> : (
+        <ul className="space-y-3">
+          {shown.map((l) => {
+            const next = nextSellerStatus(l.status);
+            const o = l.orders;
+            return (
+              <li key={l.id} className="rounded-lg bg-card p-4 text-sm">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-2">
+                  <div><span className="font-black">طلب #{l.order_id.slice(0, 8).toUpperCase()}</span> <span className="text-muted-foreground">· {new Date(l.created_at).toLocaleString("ar-EG", { dateStyle: "medium", timeStyle: "short" })}</span></div>
+                  <div className="flex items-center gap-2">
+                    <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-bold">{statusLabel[l.status]}</span>
+                    {next && <button onClick={() => move(l.id)} className="rounded-md bg-primary px-3 py-1 font-bold text-primary-foreground">{next === "shipped" ? "تم الشحن" : "تم التوصيل"}</button>}
+                  </div>
+                </div>
+                <p className="py-2 font-bold">{l.name} × {fmt(l.qty)} · {fmt(l.price * l.qty)} ج.م</p>
+                {o && <p className="text-muted-foreground">{o.full_name} · <span dir="ltr">{o.phone}</span> · {o.city}، {o.address}{o.notes ? ` · ملاحظات: ${o.notes}` : ""}</p>}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </>
+  );
+}
+
+type Row = Awaited<ReturnType<typeof listMyProducts>>[number];
+type Draft = { id?: string; name: string; brand: string; category: string; price: string; oldPrice: string; description: string; imageUrl: string | null; stock: string; active: boolean };
+const emptyDraft: Draft = { name: "", brand: "", category: categories[0]!.slug, price: "", oldPrice: "", description: "", imageUrl: null, stock: "1", active: true };
+const toDraft = (r: Row): Draft => ({ id: r.id, name: r.name, brand: r.brand, category: r.category, price: String(r.price), oldPrice: r.old_price ? String(r.old_price) : "", description: r.description, imageUrl: r.image_url, stock: String(r.stock), active: r.active });
+
+function Products() {
+  const qc = useQueryClient();
+  const { data, isLoading } = useQuery(productsQuery);
+  const remove = useServerFn(deleteProduct);
+  const [draft, setDraft] = useState<Draft | null>(null);
+  const refresh = () => Promise.all([qc.invalidateQueries({ queryKey: productsQuery.queryKey }), qc.invalidateQueries({ queryKey: ["seller-products"] })]);
+  async function del(id: string) {
+    if (!confirm("حذف هذا المنتج؟")) return;
+    try { await remove({ data: { id } }); await refresh(); toast.success("تم حذف المنتج"); } catch (err) { toast.error((err as Error).message); }
+  }
+  if (draft) return <ProductForm draft={draft} onDone={async (saved) => { if (saved) await refresh(); setDraft(null); }} />;
+  return (
+    <section className="rounded-lg bg-card p-4">
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="font-black">منتجاتي ({fmt(data?.length ?? 0)})</h2>
+        <button onClick={() => setDraft(emptyDraft)} className="flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-sm font-bold text-primary-foreground"><Plus className="h-4 w-4" />منتج جديد</button>
+      </div>
+      {isLoading ? <p className="py-8 text-center">جارٍ التحميل...</p> : !data?.length ? <p className="py-8 text-center text-sm text-muted-foreground">لم تضف منتجات بعد</p> : (
+        <ul className="divide-y">
+          {data.map((p) => (
+            <li key={p.id} className="flex items-center gap-3 py-2 text-sm">
+              <img src={p.image_url || NO_IMAGE} alt="" className="h-14 w-14 rounded bg-muted object-contain" />
+              <div className="min-w-0 flex-1">
+                <div className="line-clamp-1 font-bold">{p.name}</div>
+                <div className="text-xs text-muted-foreground">{fmt(p.price)} ج.م · المخزون {fmt(p.stock)} {!p.active && "· مخفي"}{p.stock === 0 && " · نفدت الكمية"}</div>
+              </div>
+              <button aria-label="تعديل" onClick={() => setDraft(toDraft(p))} className="rounded p-2 hover:bg-muted"><Pencil className="h-4 w-4" /></button>
+              <button aria-label="حذف" onClick={() => del(p.id)} className="rounded p-2 text-destructive hover:bg-muted"><Trash2 className="h-4 w-4" /></button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+function ProductForm({ draft, onDone }: { draft: Draft; onDone: (saved: boolean) => void }) {
+  const save = useServerFn(saveProduct);
+  const [d, setD] = useState(draft);
+  const [busy, setBusy] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setD((x) => ({ ...x, [k]: v }));
+
+  async function upload(file: File) {
+    if (!file.type.startsWith("image/")) { toast.error("اختر صورة"); return; }
+    if (file.size > 5 * 1024 * 1024) { toast.error("أقصى حجم للصورة ٥ ميجا"); return; }
+    setUploading(true);
+    try {
+      const { data: u } = await supabase.auth.getUser();
+      const path = `${u.user!.id}/${crypto.randomUUID()}.${file.name.split(".").pop() || "jpg"}`;
+      const { error } = await supabase.storage.from("product-images").upload(path, file, { contentType: file.type });
+      if (error) throw error;
+      const { data: signed, error: sErr } = await supabase.storage.from("product-images").createSignedUrl(path, 60 * 60 * 24 * 365 * 10);
+      if (sErr || !signed) throw sErr;
+      set("imageUrl", signed.signedUrl);
+    } catch { toast.error("تعذر رفع الصورة"); } finally { setUploading(false); }
+  }
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    const price = Number(d.price), stock = Number(d.stock), oldPrice = d.oldPrice ? Number(d.oldPrice) : null;
+    if (!Number.isInteger(price) || price < 1) { toast.error("أدخل سعرًا صحيحًا"); return; }
+    if (oldPrice !== null && (!Number.isInteger(oldPrice) || oldPrice < price)) { toast.error("السعر قبل الخصم يجب أن يكون أكبر من السعر"); return; }
+    if (!Number.isInteger(stock) || stock < 0) { toast.error("أدخل كمية صحيحة"); return; }
+    setBusy(true);
+    try {
+      await save({ data: { ...(d.id ? { id: d.id } : {}), name: d.name, brand: d.brand, category: d.category, price, oldPrice, description: d.description, imageUrl: d.imageUrl, stock, active: d.active } });
+      toast.success("تم حفظ المنتج");
+      onDone(true);
+    } catch (err) { toast.error((err as Error).message); } finally { setBusy(false); }
+  }
+
+  return (
+    <form onSubmit={submit} className="grid gap-3 rounded-lg bg-card p-4 md:grid-cols-2">
+      <h2 className="font-black md:col-span-2">{d.id ? "تعديل المنتج" : "منتج جديد"}</h2>
+      <label className="block text-sm font-bold md:col-span-2">اسم المنتج<input required minLength={2} maxLength={150} value={d.name} onChange={(e) => set("name", e.target.value)} className={input} /></label>
+      <label className="block text-sm font-bold">الماركة<input maxLength={60} value={d.brand} onChange={(e) => set("brand", e.target.value)} className={input} /></label>
+      <label className="block text-sm font-bold">القسم
+        <select value={d.category} onChange={(e) => set("category", e.target.value)} className={input}>{categories.map((c) => <option key={c.slug} value={c.slug}>{c.name}</option>)}</select>
+      </label>
+      <label className="block text-sm font-bold">السعر (ج.م)<input required type="number" min={1} value={d.price} onChange={(e) => set("price", e.target.value)} className={input} /></label>
+      <label className="block text-sm font-bold">السعر قبل الخصم (اختياري)<input type="number" min={1} value={d.oldPrice} onChange={(e) => set("oldPrice", e.target.value)} className={input} /></label>
+      <label className="block text-sm font-bold">الكمية المتاحة<input required type="number" min={0} value={d.stock} onChange={(e) => set("stock", e.target.value)} className={input} /></label>
+      <label className="flex items-center gap-2 self-end pb-2 text-sm font-bold"><input type="checkbox" checked={d.active} onChange={(e) => set("active", e.target.checked)} />معروض للمتسوقين</label>
+      <label className="block text-sm font-bold md:col-span-2">الوصف<textarea maxLength={2000} rows={4} value={d.description} onChange={(e) => set("description", e.target.value)} className={input} /></label>
+      <div className="flex items-center gap-3 md:col-span-2">
+        <img src={d.imageUrl || NO_IMAGE} alt="" className="h-20 w-20 rounded bg-muted object-contain" />
+        <label className="cursor-pointer rounded-md border px-3 py-2 text-sm font-bold">{uploading ? "جارٍ الرفع..." : "رفع صورة"}
+          <input type="file" accept="image/*" className="hidden" disabled={uploading} onChange={(e) => { const f = e.target.files?.[0]; if (f) upload(f); }} />
+        </label>
+      </div>
+      <div className="flex gap-2 md:col-span-2">
+        <button disabled={busy || uploading} className="rounded-md bg-primary px-5 py-2 font-black text-primary-foreground disabled:opacity-60">{busy ? "جارٍ الحفظ..." : "حفظ"}</button>
+        <button type="button" onClick={() => onDone(false)} className="rounded-md border px-5 py-2 font-bold">إلغاء</button>
+      </div>
+    </form>
+  );
+}
+
+function StoreSettings({ merchant }: { merchant: Merchant }) {
+  const qc = useQueryClient();
+  const update = useServerFn(updateMyStore);
+  const [storeName, setStoreName] = useState(merchant.store_name);
+  const [description, setDescription] = useState(merchant.description);
+  const [busy, setBusy] = useState(false);
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    try { await update({ data: { storeName, description } }); await qc.invalidateQueries({ queryKey: merchantQuery.queryKey }); toast.success("تم الحفظ"); }
+    catch (err) { toast.error((err as Error).message); } finally { setBusy(false); }
+  }
+  return (
+    <form onSubmit={submit} className="max-w-lg space-y-3 rounded-lg bg-card p-4">
+      <label className="block text-sm font-bold">اسم المتجر<input required minLength={2} maxLength={60} value={storeName} onChange={(e) => setStoreName(e.target.value)} className={input} /></label>
+      <label className="block text-sm font-bold">الوصف<textarea maxLength={500} rows={3} value={description} onChange={(e) => setDescription(e.target.value)} className={input} /></label>
+      <p className="text-xs text-muted-foreground" dir="ltr">/store/{merchant.slug}</p>
+      <button disabled={busy} className="rounded-md bg-primary px-5 py-2 font-black text-primary-foreground disabled:opacity-60">حفظ</button>
+    </form>
+  );
+}

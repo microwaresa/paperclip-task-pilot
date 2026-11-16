@@ -22,6 +22,20 @@
       "when": 1794806011380,
       "tag": "0002_admin_signup_only",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1794809634475,
+      "tag": "0003_merchants_marketplace",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1794809671877,
+      "tag": "0004_return_stock",
+      "breakpoints": true
     }
   ]
 }

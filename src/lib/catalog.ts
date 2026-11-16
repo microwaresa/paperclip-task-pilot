@@ -20,6 +20,9 @@ export type Product = {
   express: boolean;
   description: string;
   highlights: string[];
+  /** Set for products listed by a marketplace seller. */
+  seller?: { name: string; slug: string };
+  stock?: number;
 };
 
 export const categories: Category[] = [
@@ -57,7 +60,8 @@ export const products: Product[] = [
 ];
 
 export const fmt = (n: number) => n.toLocaleString("ar-EG");
-export const discountPercent = (x: Product) => Math.round((1 - x.price / x.oldPrice) * 100);
+export const discountPercent = (x: Product) => (x.oldPrice > x.price ? Math.round((1 - x.price / x.oldPrice) * 100) : 0);
+export const isSellerProductId = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 export const getProduct = (id: string) => products.find((x) => x.id === id);
 export const getCategory = (slug: string) => categories.find((c) => c.slug === slug);
 export const productsInCategory = (slug: string) => products.filter((x) => x.category === slug);

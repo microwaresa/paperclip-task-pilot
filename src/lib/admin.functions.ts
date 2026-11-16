@@ -38,6 +38,15 @@ export const adminUpdateStatus = createServerFn({ method: "POST" })
     await assertAdmin(context);
     const { error } = await context.supabase.from("orders").update({ status: data.status }).eq("id", data.id);
     if (error) throw new Error("تعذر تحديث الحالة");
+    // Cancel affects every line (and returns seller stock); other steps move the store's own lines.
+    if (data.status === "cancelled") {
+      const { data: lines } = await context.supabase.from("order_items").select("product_id, qty, merchant_id, status").eq("order_id", data.id);
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      for (const l of lines ?? []) if (l.merchant_id && l.status !== "cancelled") await supabaseAdmin.rpc("return_stock", { _product_id: l.product_id, _qty: l.qty });
+      await context.supabase.from("order_items").update({ status: "cancelled" }).eq("order_id", data.id);
+    } else {
+      await context.supabase.from("order_items").update({ status: data.status }).eq("order_id", data.id).is("merchant_id", null);
+    }
     return { ok: true };
   });
 
@@ -51,5 +60,26 @@ export const adminUpdateDelivery = createServerFn({ method: "POST" })
       .update({ shipping_fee: data.shippingFee, free_shipping_min: data.freeShippingMin, updated_at: new Date().toISOString() })
       .eq("id", 1);
     if (error) throw new Error("تعذر حفظ الإعدادات");
+    return { ok: true };
+  });
+
+export const MERCHANT_STATUSES = ["pending", "approved", "suspended"] as const;
+
+export const adminListMerchants = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context);
+    const { data, error } = await context.supabase.from("merchants").select("id, store_name, slug, description, status, created_at").order("created_at", { ascending: false });
+    if (error) throw new Error("تعذر تحميل البائعين");
+    return data;
+  });
+
+export const adminSetMerchantStatus = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: { id: string; status: string }) => z.object({ id: z.string().uuid(), status: z.enum(MERCHANT_STATUSES) }).parse(i))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const { error } = await context.supabase.from("merchants").update({ status: data.status }).eq("id", data.id);
+    if (error) throw new Error("تعذر تحديث حالة البائع");
     return { ok: true };
   });

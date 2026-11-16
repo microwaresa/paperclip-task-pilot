@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { fmt } from "@/lib/catalog";
-import { adminListOrders, adminUpdateDelivery, adminUpdateStatus, ORDER_STATUSES } from "@/lib/admin.functions";
+import { adminListMerchants, adminListOrders, adminSetMerchantStatus, adminUpdateDelivery, adminUpdateStatus, ORDER_STATUSES } from "@/lib/admin.functions";
 import { deliveryQuery } from "@/lib/settings.functions";
 import { StoreLayout } from "@/components/store/StoreLayout";
 
@@ -96,6 +96,7 @@ function AdminPage() {
     <StoreLayout>
       <h1 className="text-2xl font-black">لوحة الإدارة</h1>
       <DeliveryForm />
+      <MerchantsPanel />
       <div className="flex flex-wrap items-center gap-2">
         <h2 className="text-lg font-black">الطلبات ({fmt(orders.length)})</h2>
         {["all", ...ORDER_STATUSES].map((s) => (
@@ -132,5 +133,42 @@ function AdminPage() {
         </ul>
       )}
     </StoreLayout>
+  );
+}
+
+const merchantStatusLabel: Record<string, string> = { pending: "بانتظار الموافقة", approved: "معتمد", suspended: "موقوف" };
+
+function MerchantsPanel() {
+  const qc = useQueryClient();
+  const list = useServerFn(adminListMerchants);
+  const setStatus = useServerFn(adminSetMerchantStatus);
+  const { data } = useQuery({ queryKey: ["admin-merchants"], queryFn: () => list() });
+  async function change(id: string, status: string) {
+    try {
+      await setStatus({ data: { id, status } });
+      await Promise.all([qc.invalidateQueries({ queryKey: ["admin-merchants"] }), qc.invalidateQueries({ queryKey: ["seller-products"] })]);
+      toast.success("تم تحديث حالة البائع");
+    } catch (err) { toast.error((err as Error).message); }
+  }
+  const pending = data?.filter((m) => m.status === "pending").length ?? 0;
+  return (
+    <section className="rounded-lg bg-card p-4">
+      <h2 className="mb-2 text-lg font-black">البائعون {pending > 0 && <span className="rounded-full bg-destructive px-2 text-xs text-destructive-foreground">{fmt(pending)} جديد</span>}</h2>
+      {!data?.length ? <p className="text-sm text-muted-foreground">لا يوجد بائعون بعد</p> : (
+        <ul className="divide-y text-sm">
+          {data.map((m) => (
+            <li key={m.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+              <div><span className="font-bold">{m.store_name}</span> <span className="text-xs text-muted-foreground" dir="ltr">/store/{m.slug}</span>
+                {m.description && <p className="text-xs text-muted-foreground">{m.description}</p>}</div>
+              <div className="flex items-center gap-2">
+                <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-bold">{merchantStatusLabel[m.status]}</span>
+                {m.status !== "approved" && <button onClick={() => change(m.id, "approved")} className="rounded-md bg-primary px-3 py-1 font-bold text-primary-foreground">اعتماد</button>}
+                {m.status === "approved" && <button onClick={() => change(m.id, "suspended")} className="rounded-md border px-3 py-1 font-bold text-destructive">إيقاف</button>}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
