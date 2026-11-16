@@ -28,3 +28,9 @@ use the editor.
   own key and store it in Secrets.
 - **Secrets.** Lovable manages them. Do not put secret values in the repo.
 <!-- LOVABLE:END -->
+
+## Project rules
+- Product catalog lives in `src/lib/catalog.ts` (static, shared by browser and server); orders reference products by id. Why: one source of prices for display and order totals.
+- Orders are inserted only by the `placeOrder` server function, which recomputes prices from the catalog; shoppers have SELECT-only access to their own orders. Why: the browser can't tamper with prices.
+- Cart and favorites are stored in the browser (`src/lib/cart.tsx`), not the database. Why: shopping works signed out; sign-in is required only at checkout.
+- Delivery-fee rules live in `src/lib/pricing.ts` with tests in `pricing.test.ts`.
