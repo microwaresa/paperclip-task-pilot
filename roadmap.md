@@ -1,4 +1,5 @@
 # Roadmap
+- [x] Replace the supplied mint brand color with white.
 - [x] Apply supplied brand palette and footer tagline; verify mobile hook regression test.
 - [x] Product catalog shared module + product detail pages
 - [x] Cart (saved in browser) + cart page + checkout (cash on delivery)
