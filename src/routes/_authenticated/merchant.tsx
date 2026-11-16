@@ -3,7 +3,9 @@ import { queryOptions, useQuery, useQueryClient, useSuspenseQuery } from "@tanst
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
-import { Clock, ExternalLink, Pencil, Plus, Trash2 } from "lucide-react";
+import { BarChart3, Boxes, CheckCheck, Clock, ExternalLink, Package, Pencil, Plus, RefreshCw, Settings, TicketPercent, Trash2, Truck, Wallet } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { categories, fmt } from "@/lib/catalog";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -107,10 +109,20 @@ function ApplyForm() {
 }
 
 type Merchant = NonNullable<Awaited<ReturnType<typeof getMyMerchant>>>;
-const tabs = [{ v: "summary", l: "ملخص المبيعات" }, { v: "orders", l: "الطلبات" }, { v: "products", l: "المنتجات" }, { v: "coupons", l: "أكواد الخصم" }, { v: "withdraw", l: "سحب الأرباح" }, { v: "store", l: "بيانات المتجر" }] as const;
+const tabs = [
+  { v: "summary", l: "ملخص المبيعات", icon: BarChart3 },
+  { v: "orders", l: "الطلبات", icon: Package },
+  { v: "products", l: "المنتجات", icon: Boxes },
+  { v: "coupons", l: "أكواد الخصم", icon: TicketPercent },
+  { v: "withdraw", l: "سحب الأرباح", icon: Wallet },
+  { v: "store", l: "بيانات المتجر", icon: Settings },
+] as const;
+type TabId = (typeof tabs)[number]["v"];
 
 function Dashboard({ merchant }: { merchant: Merchant }) {
-  const [tab, setTab] = useState<(typeof tabs)[number]["v"]>("summary");
+  const qc = useQueryClient();
+  const [tab, setTab] = useState<TabId>("summary");
+  const [refreshing, setRefreshing] = useState(false);
   const lines = useQuery(linesQuery).data ?? [];
   const products = useQuery(productsQuery).data ?? [];
   const coupons = useQuery({ queryKey: ["coupons", "seller"], queryFn: () => listCoupons({ data: { scope: "seller" } }) }).data ?? [];
@@ -118,31 +130,62 @@ function Dashboard({ merchant }: { merchant: Merchant }) {
   const fresh = countNew(lines, seenAt);
   useEffect(() => { if (tab === "orders" && fresh > 0) markSellerOrdersSeen(); }, [tab, fresh]);
   const toShip = lines.filter((l) => l.status === "pending").length;
+  const shipped = lines.filter((l) => l.status === "shipped").length;
+  const delivered = lines.filter((l) => l.status === "delivered").length;
   const pendingW = (useQuery(withdrawalsQuery).data ?? []).filter((w) => w.status === "pending").length;
-  const counts: Record<string, { n: number; alert?: boolean } | undefined> = {
-    summary: { n: new Set(lines.filter((l) => l.status !== "cancelled").map((l) => l.order_id)).size },
+  const orderCount = new Set(lines.filter((l) => l.status !== "cancelled").map((l) => l.order_id)).size;
+  const counts: Partial<Record<TabId, { n: number; alert?: boolean } | undefined>> = {
+    summary: { n: orderCount },
     orders: { n: fresh || toShip, alert: fresh > 0 || toShip > 0 },
     products: { n: products.length },
     coupons: { n: coupons.filter((c) => c.active).length },
     withdraw: pendingW ? { n: pendingW } : undefined,
   };
+  const metrics = [
+    { label: "إجمالي الطلبات", value: orderCount, icon: Package },
+    { label: "بانتظار الشحن", value: toShip, icon: Clock },
+    { label: "في الطريق", value: shipped, icon: Truck },
+    { label: "تم التوصيل", value: delivered, icon: CheckCheck },
+  ];
+  async function refresh() {
+    setRefreshing(true);
+    try {
+      await Promise.all([linesQuery.queryKey, productsQuery.queryKey, payoutsQuery.queryKey, withdrawalsQuery.queryKey, ["coupons", "seller"], merchantQuery.queryKey].map((queryKey) => qc.invalidateQueries({ queryKey })));
+    } finally { setRefreshing(false); }
+  }
   return (
     <>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-2xl font-black">لوحة البائع · {merchant.store_name}</h1>
-        <Link to="/store/$slug" params={{ slug: merchant.slug }} className="flex items-center gap-1 text-sm font-bold text-accent"><ExternalLink className="h-4 w-4" />صفحة متجري</Link>
-      </div>
-      <div className="flex flex-wrap gap-2">
-        {tabs.map((t) => <button key={t.v} onClick={() => setTab(t.v)} className={`flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-bold ${tab === t.v ? "bg-primary text-primary-foreground" : "bg-card"}`}>{t.l}
-          {counts[t.v] && <span title={t.v === "orders" ? (fresh ? "طلبات جديدة" : "بانتظار الشحن") : undefined} className={`min-w-5 rounded-full px-1.5 text-center text-xs leading-5 ${counts[t.v]!.alert ? "bg-destructive text-destructive-foreground" : "bg-muted text-muted-foreground"}`}>{fmt(counts[t.v]!.n)}</span>}
-        </button>)}
-      </div>
-      {tab === "summary" && <Summary />}
-      {tab === "orders" && <Orders />}
-      {tab === "products" && <Products />}
-      {tab === "coupons" && <CouponManager scope="seller" />}
-      {tab === "withdraw" && <Withdrawals />}
-      {tab === "store" && <StoreSettings merchant={merchant} />}
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b pb-4">
+        <div className="min-w-0"><p className="mb-1 text-xs font-bold text-muted-foreground">سين / لوحة البائع</p><h1 className="truncate text-2xl font-black">{merchant.store_name}</h1></div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" asChild><Link to="/store/$slug" params={{ slug: merchant.slug }}><ExternalLink />صفحة متجري</Link></Button>
+          <Button variant="outline" size="icon" aria-label="تحديث البيانات" title="تحديث البيانات" disabled={refreshing} onClick={refresh}><RefreshCw className={refreshing ? "animate-spin" : ""} /></Button>
+        </div>
+      </header>
+      <dl className="grid grid-cols-2 gap-x-4 gap-y-5 border-b pb-6 md:grid-cols-4">
+        {metrics.map(({ label, value, icon: Icon }) => <div key={label} className="border-s-2 border-primary ps-3"><dt className="flex items-center gap-2 text-sm text-muted-foreground"><Icon className="size-4 shrink-0" />{label}</dt><dd className="mt-2 text-2xl font-black">{fmt(value)}</dd></div>)}
+      </dl>
+      <Tabs value={tab} onValueChange={(v) => setTab(v as TabId)} dir="rtl" className="grid min-w-0 gap-5 lg:grid-cols-[200px_minmax(0,1fr)]">
+        <TabsList aria-label="أقسام لوحة البائع" className="h-auto w-full flex-wrap justify-start gap-1 rounded-none border-b bg-transparent p-0 pb-3 lg:flex-col lg:items-stretch lg:self-start lg:border-b-0 lg:border-e lg:pe-3">
+          {tabs.map(({ v, l, icon: Icon }) => {
+            const c = counts[v];
+            return (
+              <TabsTrigger key={v} value={v} className="min-h-10 gap-2 px-3 data-[state=active]:bg-secondary data-[state=active]:text-secondary-foreground data-[state=active]:shadow-none lg:justify-start">
+                <Icon className="size-4 shrink-0" /><span className="flex-1 text-start">{l}</span>
+                {c && <span title={v === "orders" ? (fresh ? "طلبات جديدة" : "بانتظار الشحن") : undefined} className={`min-w-5 rounded-full px-1.5 text-center text-xs leading-5 ${c.alert ? "bg-destructive text-destructive-foreground" : "bg-muted text-muted-foreground"}`}>{fmt(c.n)}</span>}
+              </TabsTrigger>
+            );
+          })}
+        </TabsList>
+        <div className="min-w-0">
+          <TabsContent value="summary" className="mt-0 space-y-4"><Summary /></TabsContent>
+          <TabsContent value="orders" className="mt-0"><Orders /></TabsContent>
+          <TabsContent value="products" className="mt-0"><Products /></TabsContent>
+          <TabsContent value="coupons" className="mt-0"><CouponManager scope="seller" /></TabsContent>
+          <TabsContent value="withdraw" className="mt-0"><Withdrawals /></TabsContent>
+          <TabsContent value="store" className="mt-0"><StoreSettings merchant={merchant} /></TabsContent>
+        </div>
+      </Tabs>
     </>
   );
 }
