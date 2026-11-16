@@ -63,14 +63,16 @@ const productInput = z.object({
   imageUrls: z.array(z.string().url().max(2000)).max(8),
   stock: z.number().int().min(0).max(100_000),
   active: z.boolean(),
-}).refine((p) => p.oldPrice === null || p.oldPrice >= p.price, { message: "السعر قبل الخصم يجب أن يكون أكبر من السعر الحالي" });
+  salePrice: z.number().int().min(1).max(1_000_000).nullable().default(null),
+  saleEndsAt: z.string().datetime({ offset: true }).nullable().default(null),
+}).refine((p) => (p.salePrice === null) === (p.saleEndsAt === null) && (p.salePrice === null || p.salePrice < p.price), { message: "سعر العرض يجب أن يكون أقل من السعر وله تاريخ انتهاء" }).refine((p) => p.oldPrice === null || p.oldPrice >= p.price, { message: "السعر قبل الخصم يجب أن يكون أكبر من السعر الحالي" });
 
 export const saveProduct = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: z.input<typeof productInput>) => productInput.parse(i))
   .handler(async ({ data, context }) => {
     const m = await myMerchantId(context);
-    const row = { merchant_id: m.id, name: data.name, brand: data.brand, category: data.category, price: data.price, old_price: data.oldPrice, description: data.description, image_url: data.imageUrls[0] ?? null, image_urls: data.imageUrls, stock: data.stock, active: data.active };
+    const row = { merchant_id: m.id, name: data.name, brand: data.brand, category: data.category, price: data.price, old_price: data.oldPrice, description: data.description, image_url: data.imageUrls[0] ?? null, image_urls: data.imageUrls, stock: data.stock, active: data.active, sale_price: data.salePrice, sale_ends_at: data.saleEndsAt };
     const { error } = data.id
       ? await context.supabase.from("merchant_products").update(row).eq("id", data.id).eq("merchant_id", m.id)
       : await context.supabase.from("merchant_products").insert(row);
@@ -93,7 +95,7 @@ export const listMyOrderLines = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const m = await myMerchantId(context);
     const { data, error } = await context.supabase.from("order_items")
-      .select("id, order_id, product_id, name, price, qty, status, commission_rate, delivered_at, created_at, orders(full_name, phone, city, address, notes)")
+      .select("id, order_id, product_id, name, price, qty, discount, status, commission_rate, delivered_at, created_at, orders(full_name, phone, city, address, notes)")
       .eq("merchant_id", m.id).order("created_at", { ascending: false }).limit(500);
     if (error) throw new Error("تعذر تحميل الطلبات");
     return data;

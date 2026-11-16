@@ -76,6 +76,7 @@ function OrdersPage() {
               </ul>
               <div className="flex flex-wrap justify-between gap-2 border-t pt-2 text-sm">
                 <span className="text-muted-foreground">{o.full_name} · {o.city}، {o.address}</span>
+                {o.discount > 0 && <span className="font-bold text-success">خصم {fmt(o.discount)} ج.م{o.coupon_code ? ` (${o.coupon_code})` : ""}</span>}
                 <span className="font-black">الإجمالي {fmt(o.total)} ج.م {o.shipping === 0 ? "(توصيل مجاني)" : `(شامل توصيل ${fmt(o.shipping)} ج.م)`}</span>
               </div>
             </li>

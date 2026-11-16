@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { fmt } from "@/lib/catalog";
 import { adminAddPayout, adminDeletePayout, adminMerchantLedger, adminSetCommission, adminListMerchants, adminListOrders, adminSetMerchantStatus, adminUpdateDelivery, adminUpdateStatus, ORDER_STATUSES } from "@/lib/admin.functions";
 import { sellerEarnings } from "@/lib/merchant-stats";
+import { CouponManager } from "@/components/store/CouponManager";
 import { deliveryQuery } from "@/lib/settings.functions";
 import { StoreLayout } from "@/components/store/StoreLayout";
 
@@ -101,6 +102,7 @@ function AdminPage() {
     <StoreLayout>
       <h1 className="text-2xl font-black">لوحة الإدارة</h1>
       <DeliveryForm />
+      <CouponManager scope="store" />
       <MerchantsPanel />
       <div className="flex flex-wrap items-center gap-2">
         <h2 className="text-lg font-black">الطلبات ({fmt(orders.length)})</h2>
@@ -132,7 +134,7 @@ function AdminPage() {
                   <li key={it.id} className="flex justify-between py-1"><span>{it.name} × {fmt(it.qty)}</span><span>{fmt(it.price * it.qty)} ج.م</span></li>
                 ))}
               </ul>
-              <p className="border-t pt-2 text-left font-black">الإجمالي {fmt(o.total)} ج.م (توصيل {fmt(o.shipping)} ج.م)</p>
+              <p className="border-t pt-2 text-left font-black">الإجمالي {fmt(o.total)} ج.م (توصيل {fmt(o.shipping)} ج.م){o.discount > 0 ? ` · خصم ${fmt(o.discount)} ج.م (${o.coupon_code})` : ""}</p>
             </li>
           ))}
         </ul>

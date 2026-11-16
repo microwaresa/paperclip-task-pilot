@@ -1,4 +1,5 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { SaleCountdown } from "@/components/store/SaleCountdown";
 import { useState } from "react";
 import { Check, Heart, Minus, Plus, ShieldCheck, Star, Truck } from "lucide-react";
 import { toast } from "sonner";
@@ -72,6 +73,7 @@ function ProductPage() {
           <div className="border-y py-3">
             <div className="text-3xl font-black">{fmt(p.price)} <span className="text-base font-semibold">ج.م</span></div>
             {p.oldPrice > p.price && <div className="mt-1 flex gap-2 text-sm"><s className="text-muted-foreground">{fmt(p.oldPrice)} ج.م</s><span className="font-bold text-success">وفّر {fmt(p.oldPrice - p.price)} ج.م (خصم {fmt(discountPercent(p))}٪)</span></div>}
+            {p.saleEndsAt && <SaleCountdown endsAt={p.saleEndsAt} className="mt-2 text-sm" />}
           </div>
           <p className="text-sm leading-relaxed">{p.description}</p>
           <ul className="space-y-1.5 text-sm">

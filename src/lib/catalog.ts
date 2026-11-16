@@ -25,6 +25,8 @@ export type Product = {
   /** Set for products listed by a marketplace seller. */
   seller?: { name: string; slug: string };
   stock?: number;
+  /** End of a timed seller offer (ISO). */
+  saleEndsAt?: string;
 };
 
 export const categories: Category[] = [

@@ -16,6 +16,7 @@ import { Route as AssistantRouteImport } from './routes/assistant'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as CartRouteImport } from './routes/cart'
 import { Route as FavoritesRouteImport } from './routes/favorites'
+import { Route as OffersRouteImport } from './routes/offers'
 import { Route as SearchRouteImport } from './routes/search'
 import { Route as SellRouteImport } from './routes/sell'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
@@ -58,6 +59,11 @@ const CartRoute = CartRouteImport.update({
 const FavoritesRoute = FavoritesRouteImport.update({
   id: '/favorites',
   path: '/favorites',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OffersRoute = OffersRouteImport.update({
+  id: '/offers',
+  path: '/offers',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SearchRoute = SearchRouteImport.update({
@@ -113,6 +119,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/cart': typeof CartRoute
   '/favorites': typeof FavoritesRoute
+  '/offers': typeof OffersRoute
   '/search': typeof SearchRoute
   '/sell': typeof SellRoute
   '/admin': typeof AuthenticatedAdminRoute
@@ -130,6 +137,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/cart': typeof CartRoute
   '/favorites': typeof FavoritesRoute
+  '/offers': typeof OffersRoute
   '/search': typeof SearchRoute
   '/sell': typeof SellRoute
   '/admin': typeof AuthenticatedAdminRoute
@@ -149,6 +157,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/cart': typeof CartRoute
   '/favorites': typeof FavoritesRoute
+  '/offers': typeof OffersRoute
   '/search': typeof SearchRoute
   '/sell': typeof SellRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
@@ -168,6 +177,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/cart'
     | '/favorites'
+    | '/offers'
     | '/search'
     | '/sell'
     | '/admin'
@@ -185,6 +195,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/cart'
     | '/favorites'
+    | '/offers'
     | '/search'
     | '/sell'
     | '/admin'
@@ -203,6 +214,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/cart'
     | '/favorites'
+    | '/offers'
     | '/search'
     | '/sell'
     | '/_authenticated/admin'
@@ -222,6 +234,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   CartRoute: typeof CartRoute
   FavoritesRoute: typeof FavoritesRoute
+  OffersRoute: typeof OffersRoute
   SearchRoute: typeof SearchRoute
   SellRoute: typeof SellRoute
   CategorySlugRoute: typeof CategorySlugRoute
@@ -278,6 +291,13 @@ declare module '@tanstack/react-router' {
       path: '/favorites'
       fullPath: '/favorites'
       preLoaderRoute: typeof FavoritesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/offers': {
+      id: '/offers'
+      path: '/offers'
+      fullPath: '/offers'
+      preLoaderRoute: typeof OffersRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/search': {
@@ -371,6 +391,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   CartRoute: CartRoute,
   FavoritesRoute: FavoritesRoute,
+  OffersRoute: OffersRoute,
   SearchRoute: SearchRoute,
   SellRoute: SellRoute,
   CategorySlugRoute: CategorySlugRoute,

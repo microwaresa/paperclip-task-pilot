@@ -24,7 +24,7 @@ export const adminListOrders = createServerFn({ method: "GET" })
     await assertAdmin(context);
     const { data, error } = await context.supabase
       .from("orders")
-      .select("id, created_at, status, items, subtotal, shipping, total, city, address, full_name, phone, notes")
+      .select("id, created_at, status, items, subtotal, shipping, discount, coupon_code, total, city, address, full_name, phone, notes")
       .order("created_at", { ascending: false })
       .limit(500);
     if (error) throw new Error("تعذر تحميل الطلبات");
@@ -100,7 +100,7 @@ export const adminMerchantLedger = createServerFn({ method: "GET" })
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
     const [lines, payouts] = await Promise.all([
-      context.supabase.from("order_items").select("price, qty, status, commission_rate, delivered_at").eq("merchant_id", data.id),
+      context.supabase.from("order_items").select("price, qty, discount, status, commission_rate, delivered_at").eq("merchant_id", data.id),
       context.supabase.from("merchant_payouts").select("id, amount, note, created_at").eq("merchant_id", data.id).order("created_at", { ascending: false }),
     ]);
     if (lines.error || payouts.error) throw new Error("تعذر تحميل الأرباح");

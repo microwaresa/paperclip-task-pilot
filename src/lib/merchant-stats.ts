@@ -22,7 +22,7 @@ export function sellerSummary(lines: SellerLine[]) {
 /** Sellers move a line forward one step only: pending → shipped → delivered. */
 export const nextSellerStatus = (s: string) => (s === "pending" ? "shipped" : s === "shipped" ? "delivered" : null);
 
-export type EarningLine = { price: number; qty: number; status: string; commission_rate: number | string; delivered_at?: string | null };
+export type EarningLine = { price: number; qty: number; status: string; commission_rate: number | string; delivered_at?: string | null; discount?: number };
 
 const DAY = 86_400_000;
 
@@ -32,10 +32,11 @@ const DAY = 86_400_000;
  */
 export function sellerEarnings(lines: EarningLine[], payouts: { amount: number | string }[], holdDays = 7, now = Date.now()) {
   const r2 = (n: number) => Math.round(n * 100) / 100;
-  const net = (l: EarningLine) => l.price * l.qty * (1 - Number(l.commission_rate) / 100);
+  const amt = (l: EarningLine) => l.price * l.qty - (l.discount ?? 0);
+  const net = (l: EarningLine) => amt(l) * (1 - Number(l.commission_rate) / 100);
   const delivered = lines.filter((l) => l.status === "delivered");
   const ready = (l: EarningLine) => !l.delivered_at || new Date(l.delivered_at).getTime() + holdDays * DAY <= now;
-  const gross = r2(delivered.reduce((s, l) => s + l.price * l.qty, 0));
+  const gross = r2(delivered.reduce((s, l) => s + amt(l), 0));
   const totalNet = r2(delivered.reduce((s, l) => s + net(l), 0));
   const available = r2(delivered.filter(ready).reduce((s, l) => s + net(l), 0));
   const paid = r2(payouts.reduce((s, p) => s + Number(p.amount), 0));

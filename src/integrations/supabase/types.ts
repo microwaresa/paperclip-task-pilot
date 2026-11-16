@@ -14,6 +14,56 @@ export type Database = {
   }
   public: {
     Tables: {
+      coupons: {
+        Row: {
+          active: boolean
+          code: string
+          created_at: string
+          expires_at: string | null
+          id: string
+          kind: string
+          max_uses: number | null
+          merchant_id: string | null
+          min_order: number
+          used_count: number
+          value: number
+        }
+        Insert: {
+          active?: boolean
+          code: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          kind: string
+          max_uses?: number | null
+          merchant_id?: string | null
+          min_order?: number
+          used_count?: number
+          value?: number
+        }
+        Update: {
+          active?: boolean
+          code?: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          kind?: string
+          max_uses?: number | null
+          merchant_id?: string | null
+          min_order?: number
+          used_count?: number
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coupons_merchant_id_fkey"
+            columns: ["merchant_id"]
+            isOneToOne: false
+            referencedRelation: "merchants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       merchant_payouts: {
         Row: {
           amount: number
@@ -60,6 +110,8 @@ export type Database = {
           name: string
           old_price: number | null
           price: number
+          sale_ends_at: string | null
+          sale_price: number | null
           stock: number
         }
         Insert: {
@@ -75,6 +127,8 @@ export type Database = {
           name: string
           old_price?: number | null
           price: number
+          sale_ends_at?: string | null
+          sale_price?: number | null
           stock?: number
         }
         Update: {
@@ -90,6 +144,8 @@ export type Database = {
           name?: string
           old_price?: number | null
           price?: number
+          sale_ends_at?: string | null
+          sale_price?: number | null
           stock?: number
         }
         Relationships: [
@@ -140,6 +196,7 @@ export type Database = {
           commission_rate: number
           created_at: string
           delivered_at: string | null
+          discount: number
           id: string
           merchant_id: string | null
           name: string
@@ -153,6 +210,7 @@ export type Database = {
           commission_rate?: number
           created_at?: string
           delivered_at?: string | null
+          discount?: number
           id?: string
           merchant_id?: string | null
           name: string
@@ -166,6 +224,7 @@ export type Database = {
           commission_rate?: number
           created_at?: string
           delivered_at?: string | null
+          discount?: number
           id?: string
           merchant_id?: string | null
           name?: string
@@ -196,7 +255,9 @@ export type Database = {
         Row: {
           address: string
           city: string
+          coupon_code: string | null
           created_at: string
+          discount: number
           full_name: string
           id: string
           items: Json
@@ -212,7 +273,9 @@ export type Database = {
         Insert: {
           address: string
           city: string
+          coupon_code?: string | null
           created_at?: string
+          discount?: number
           full_name: string
           id?: string
           items?: Json
@@ -228,7 +291,9 @@ export type Database = {
         Update: {
           address?: string
           city?: string
+          coupon_code?: string | null
           created_at?: string
+          discount?: number
           full_name?: string
           id?: string
           items?: Json
@@ -310,6 +375,7 @@ export type Database = {
         Args: { _product_id: string; _qty: number }
         Returns: boolean
       }
+      use_coupon: { Args: { _id: string }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "user"

@@ -13,6 +13,7 @@ import { nextSellerStatus, sellerEarnings, sellerSummary } from "@/lib/merchant-
 import { NO_IMAGE } from "@/lib/market";
 import { deliveryQuery } from "@/lib/settings.functions";
 import { StoreLayout } from "@/components/store/StoreLayout";
+import { CouponManager } from "@/components/store/CouponManager";
 
 const merchantQuery = queryOptions({ queryKey: ["my-merchant"], queryFn: () => getMyMerchant() });
 const productsQuery = queryOptions({ queryKey: ["my-products"], queryFn: () => listMyProducts() });
@@ -100,7 +101,7 @@ function ApplyForm() {
 }
 
 type Merchant = NonNullable<Awaited<ReturnType<typeof getMyMerchant>>>;
-const tabs = [{ v: "summary", l: "ملخص المبيعات" }, { v: "orders", l: "الطلبات" }, { v: "products", l: "المنتجات" }, { v: "store", l: "بيانات المتجر" }] as const;
+const tabs = [{ v: "summary", l: "ملخص المبيعات" }, { v: "orders", l: "الطلبات" }, { v: "products", l: "المنتجات" }, { v: "coupons", l: "أكواد الخصم" }, { v: "store", l: "بيانات المتجر" }] as const;
 
 function Dashboard({ merchant }: { merchant: Merchant }) {
   const [tab, setTab] = useState<(typeof tabs)[number]["v"]>("summary");
@@ -116,6 +117,7 @@ function Dashboard({ merchant }: { merchant: Merchant }) {
       {tab === "summary" && <Summary />}
       {tab === "orders" && <Orders />}
       {tab === "products" && <Products />}
+      {tab === "coupons" && <CouponManager scope="seller" />}
       {tab === "store" && <StoreSettings merchant={merchant} />}
     </>
   );
@@ -223,9 +225,10 @@ function Orders() {
 }
 
 type Row = Awaited<ReturnType<typeof listMyProducts>>[number];
-type Draft = { id?: string; name: string; brand: string; category: string; price: string; oldPrice: string; description: string; imageUrls: string[]; stock: string; active: boolean };
-const emptyDraft: Draft = { name: "", brand: "", category: categories[0]!.slug, price: "", oldPrice: "", description: "", imageUrls: [], stock: "1", active: true };
-const toDraft = (r: Row): Draft => ({ id: r.id, name: r.name, brand: r.brand, category: r.category, price: String(r.price), oldPrice: r.old_price ? String(r.old_price) : "", description: r.description, imageUrls: r.image_urls?.length ? r.image_urls : r.image_url ? [r.image_url] : [], stock: String(r.stock), active: r.active });
+type Draft = { id?: string; name: string; brand: string; category: string; price: string; oldPrice: string; description: string; imageUrls: string[]; stock: string; active: boolean; salePrice: string; saleEndsAt: string };
+const emptyDraft: Draft = { name: "", brand: "", category: categories[0]!.slug, price: "", oldPrice: "", description: "", imageUrls: [], stock: "1", active: true, salePrice: "", saleEndsAt: "" };
+const toDraft = (r: Row): Draft => ({ id: r.id, name: r.name, brand: r.brand, category: r.category, price: String(r.price), oldPrice: r.old_price ? String(r.old_price) : "", description: r.description, imageUrls: r.image_urls?.length ? r.image_urls : r.image_url ? [r.image_url] : [], stock: String(r.stock), active: r.active, salePrice: r.sale_price ? String(r.sale_price) : "", saleEndsAt: r.sale_ends_at ? toLocalInput(r.sale_ends_at) : "" });
+function toLocalInput(iso: string) { const d = new Date(iso); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16); }
 
 function Products() {
   const qc = useQueryClient();
@@ -298,10 +301,14 @@ function ProductForm({ draft, onDone }: { draft: Draft; onDone: (saved: boolean)
     const price = Number(d.price), stock = Number(d.stock), oldPrice = d.oldPrice ? Number(d.oldPrice) : null;
     if (!Number.isInteger(price) || price < 1) { toast.error("أدخل سعرًا صحيحًا"); return; }
     if (oldPrice !== null && (!Number.isInteger(oldPrice) || oldPrice < price)) { toast.error("السعر قبل الخصم يجب أن يكون أكبر من السعر"); return; }
+    const salePrice = d.salePrice ? Number(d.salePrice) : null;
+    const saleEndsAt = d.saleEndsAt ? new Date(d.saleEndsAt).toISOString() : null;
+    if ((salePrice === null) !== (saleEndsAt === null)) { toast.error("لعرض محدد المدة أدخل سعر العرض وموعد انتهائه معًا"); return; }
+    if (salePrice !== null && (!Number.isInteger(salePrice) || salePrice >= price)) { toast.error("سعر العرض يجب أن يكون أقل من السعر"); return; }
     if (!Number.isInteger(stock) || stock < 0) { toast.error("أدخل كمية صحيحة"); return; }
     setBusy(true);
     try {
-      await save({ data: { ...(d.id ? { id: d.id } : {}), name: d.name, brand: d.brand, category: d.category, price, oldPrice, description: d.description, imageUrls: d.imageUrls, stock, active: d.active } });
+      await save({ data: { ...(d.id ? { id: d.id } : {}), name: d.name, brand: d.brand, category: d.category, price, oldPrice, description: d.description, imageUrls: d.imageUrls, stock, active: d.active, salePrice, saleEndsAt } });
       toast.success("تم حفظ المنتج");
       onDone(true);
     } catch (err) { toast.error((err as Error).message); } finally { setBusy(false); }
@@ -317,6 +324,8 @@ function ProductForm({ draft, onDone }: { draft: Draft; onDone: (saved: boolean)
       </label>
       <label className="block text-sm font-bold">السعر (ج.م)<input required type="number" min={1} value={d.price} onChange={(e) => set("price", e.target.value)} className={input} /></label>
       <label className="block text-sm font-bold">السعر قبل الخصم (اختياري)<input type="number" min={1} value={d.oldPrice} onChange={(e) => set("oldPrice", e.target.value)} className={input} /></label>
+      <label className="block text-sm font-bold">سعر عرض محدد المدة (اختياري)<input type="number" min={1} value={d.salePrice} onChange={(e) => set("salePrice", e.target.value)} className={input} /></label>
+      <label className="block text-sm font-bold">ينتهي العرض في<input type="datetime-local" value={d.saleEndsAt} onChange={(e) => set("saleEndsAt", e.target.value)} className={input} /></label>
       <label className="block text-sm font-bold">الكمية المتاحة<input required type="number" min={0} value={d.stock} onChange={(e) => set("stock", e.target.value)} className={input} /></label>
       <label className="flex items-center gap-2 self-end pb-2 text-sm font-bold"><input type="checkbox" checked={d.active} onChange={(e) => set("active", e.target.checked)} />معروض للمتسوقين</label>
       <label className="block text-sm font-bold md:col-span-2">الوصف<textarea maxLength={2000} rows={4} value={d.description} onChange={(e) => set("description", e.target.value)} className={input} /></label>

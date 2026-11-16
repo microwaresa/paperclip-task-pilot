@@ -3,6 +3,7 @@ import { Heart, Star } from "lucide-react";
 import { toast } from "sonner";
 import { discountPercent, fmt, type Product } from "@/lib/catalog";
 import { useCart } from "@/lib/cart";
+import { SaleCountdown } from "./SaleCountdown";
 
 export function ProductCard({ p }: { p: Product }) {
   const { add, favorites, toggleFavorite } = useCart();
@@ -19,6 +20,7 @@ export function ProductCard({ p }: { p: Product }) {
         {p.reviews > 0 && <div className="mt-1 flex items-center gap-1 text-xs"><span className="flex items-center gap-0.5 rounded bg-success px-1 font-bold text-accent-foreground">{fmt(p.rating)}<Star className="h-3 w-3 fill-current" /></span><span className="text-muted-foreground">({fmt(p.reviews)})</span></div>}
         <div className="mt-1 font-black">{fmt(p.price)} <span className="text-xs font-semibold">ج.م</span></div>
         {p.oldPrice > p.price && <div className="flex gap-2 text-xs"><s className="text-muted-foreground">{fmt(p.oldPrice)}</s><span className="font-bold text-success">خصم {fmt(discountPercent(p))}٪</span></div>}
+        {p.saleEndsAt && <SaleCountdown endsAt={p.saleEndsAt} className="mt-1 w-fit" />}
         {p.express && <span className="mt-1 w-fit rounded bg-primary px-1.5 text-[10px] font-black italic">سريع ⚡</span>}
       </Link>
       <button disabled={p.stock === 0} onClick={() => { add(p.id); toast.success("تمت الإضافة إلى العربة"); }} className="mt-2 rounded-md bg-secondary py-1.5 text-xs font-bold text-secondary-foreground hover:bg-accent disabled:opacity-50">{p.stock === 0 ? "نفدت الكمية" : "أضف إلى العربة"}</button>
