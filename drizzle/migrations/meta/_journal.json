@@ -78,6 +78,13 @@
       "when": 1794821234946,
       "tag": "0010_withdrawal_requests",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1794825405846,
+      "tag": "0011_restrict_product_image_reads_and_settings",
+      "breakpoints": true
     }
   ]
 }
