@@ -1,4 +1,4 @@
-type AuthErr = { message: string; code?: string };
+type AuthErr = { message: string; code?: string | undefined };
 
 /** Arabic message for a failed sign-up, explaining the real reason. */
 export function signUpErrorMessage(error: AuthErr): string {
