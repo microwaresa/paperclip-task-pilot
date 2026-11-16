@@ -24,7 +24,7 @@ export function SiteFooter() {
           <p className="py-0.5 opacity-70">الدفع عند الاستلام</p>
         </div>
       </div>
-      <div className="border-t border-secondary-foreground/10 py-4 text-center text-xs opacity-60">© ٢٠٢٦ سين. جميع الحقوق محفوظة.</div>
+      <div className="border-t border-secondary-foreground/10 py-4 text-center text-xs opacity-60">© ٢٠٢٦ سين. جميع الحقوق محفوظة. · <Link to="/admin-login" className="hover:underline">دخول المسؤول</Link></div>
     </footer>
   );
 }
