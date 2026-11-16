@@ -7,7 +7,7 @@ import { fmt } from "@/lib/catalog";
 import { listMyOrders } from "@/lib/orders.functions";
 import { StoreLayout } from "@/components/store/StoreLayout";
 
-const ordersQuery = queryOptions({ queryKey: ["orders"], queryFn: () => listMyOrders() });
+const ordersQuery = queryOptions({ queryKey: ["orders"], queryFn: () => listMyOrders(), refetchInterval: 20_000, refetchOnWindowFocus: true });
 const statusLabel: Record<string, string> = { pending: "قيد التجهيز", shipped: "تم الشحن", delivered: "تم التوصيل", cancelled: "ملغي" };
 
 export const Route = createFileRoute("/_authenticated/orders")({
@@ -65,6 +65,7 @@ function OrdersPage() {
                 <div><span className="font-black">طلب #{o.id.slice(0, 8).toUpperCase()}</span> <span className="text-muted-foreground">· {new Date(o.created_at).toLocaleDateString("ar-EG", { dateStyle: "medium" })}</span></div>
                 <span className="rounded-full bg-primary px-2.5 py-0.5 text-xs font-bold text-primary-foreground">{statusLabel[o.status] ?? o.status}</span>
               </div>
+              <StatusSteps status={o.status} />
               <ul className="divide-y py-2 text-sm">
                 {o.items.map((it) => (
                   <li key={it.id} className="flex justify-between gap-3 py-1.5">
@@ -82,5 +83,21 @@ function OrdersPage() {
         </ul>
       )}
     </StoreLayout>
+  );
+}
+
+const STEPS = ["pending", "shipped", "delivered"] as const;
+function StatusSteps({ status }: { status: string }) {
+  if (status === "cancelled") return <p className="py-2 text-sm font-bold text-destructive">تم إلغاء هذا الطلب</p>;
+  const at = STEPS.indexOf(status as (typeof STEPS)[number]);
+  return (
+    <ol className="flex gap-2 py-3" aria-label="مراحل الطلب">
+      {STEPS.map((s, i) => (
+        <li key={s} className="flex-1 text-center text-xs font-bold">
+          <div className={`mb-1 h-1.5 rounded-full ${i <= at ? "bg-primary" : "bg-muted"}`} />
+          <span className={i <= at ? "" : "text-muted-foreground"}>{statusLabel[s]}</span>
+        </li>
+      ))}
+    </ol>
   );
 }

@@ -8,7 +8,7 @@ import { adminListOrders, adminUpdateDelivery, adminUpdateStatus, ORDER_STATUSES
 import { deliveryQuery } from "@/lib/settings.functions";
 import { StoreLayout } from "@/components/store/StoreLayout";
 
-const adminOrdersQuery = queryOptions({ queryKey: ["admin-orders"], queryFn: () => adminListOrders() });
+const adminOrdersQuery = queryOptions({ queryKey: ["admin-orders"], queryFn: () => adminListOrders(), refetchInterval: 30_000 });
 const statusLabel: Record<string, string> = { pending: "قيد التجهيز", shipped: "تم الشحن", delivered: "تم التوصيل", cancelled: "ملغي" };
 
 export const Route = createFileRoute("/_authenticated/admin")({
@@ -112,9 +112,13 @@ function AdminPage() {
             <li key={o.id} className="rounded-lg bg-card p-4 text-sm">
               <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-2">
                 <div><span className="font-black">طلب #{o.id.slice(0, 8).toUpperCase()}</span> <span className="text-muted-foreground">· {new Date(o.created_at).toLocaleString("ar-EG", { dateStyle: "medium", timeStyle: "short" })}</span></div>
+                <div className="flex flex-wrap items-center gap-2">
+                {o.status === "pending" && <button onClick={() => changeStatus(o.id, "shipped")} className="rounded-md bg-primary px-3 py-1 font-bold text-primary-foreground">تم الشحن</button>}
+                {o.status === "shipped" && <button onClick={() => changeStatus(o.id, "delivered")} className="rounded-md bg-primary px-3 py-1 font-bold text-primary-foreground">تم التوصيل</button>}
                 <select aria-label="حالة الطلب" value={o.status} onChange={(e) => changeStatus(o.id, e.target.value)} className="rounded-md border bg-background px-2 py-1 font-bold">
                   {ORDER_STATUSES.map((s) => <option key={s} value={s}>{statusLabel[s]}</option>)}
                 </select>
+                </div>
               </div>
               <p className="py-2">{o.full_name} · <span dir="ltr">{o.phone}</span> · {o.city}، {o.address}{o.notes ? ` · ملاحظات: ${o.notes}` : ""}</p>
               <ul className="divide-y">
