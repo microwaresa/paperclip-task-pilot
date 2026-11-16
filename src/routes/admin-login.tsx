@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { ShieldCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { amIAdmin } from "@/lib/admin.functions";
+import { signUpErrorMessage } from "@/lib/auth-errors";
 
 export const Route = createFileRoute("/admin-login")({
   ssr: false,
@@ -55,7 +56,7 @@ function AdminLogin() {
       email, password,
       options: { emailRedirectTo: window.location.origin + "/admin-login", data: { signup_as: "admin" } },
     });
-    if (error) toast.error(error.message.includes("registered") ? "هذا البريد مسجل بالفعل" : "تعذر إنشاء الحساب");
+    if (error) toast.error(signUpErrorMessage(error));
     else setSent(true);
   };
 
@@ -86,6 +87,7 @@ function AdminLogin() {
               </label>
               <label className="block text-sm font-semibold">كلمة المرور
                 <input type="password" required minLength={8} dir="ltr" value={password} onChange={(e) => setPassword(e.target.value)} className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm" />
+                {creating && <span className="mt-1 block text-xs font-normal text-muted-foreground">٨ أحرف على الأقل، ولا تستخدم كلمة مرور شائعة مثل 12345678 أو password.</span>}
               </label>
               <button disabled={busy || hasAdmin === null} className="w-full rounded-md bg-primary py-2.5 font-black text-primary-foreground disabled:opacity-60">
                 {busy ? "جارٍ..." : creating ? "إنشاء حساب المسؤول" : "دخول"}

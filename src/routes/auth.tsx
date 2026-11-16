@@ -7,6 +7,7 @@ import "@lovable.dev/cloud-auth-js/styles.css";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
 import { useAuth } from "@/hooks/use-auth";
+import { signUpErrorMessage } from "@/lib/auth-errors";
 
 export const Route = createFileRoute("/auth")({
   validateSearch: zodValidator(z.object({ redirect: z.string().optional() })),
@@ -60,7 +61,7 @@ function AuthPage() {
       if (error) toast.error(error.message.includes("Invalid") ? "البريد أو كلمة المرور غير صحيحة" : error.message.includes("confirm") ? "يرجى تأكيد بريدك الإلكتروني أولًا" : "تعذر تسجيل الدخول");
     } else {
       const { error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: window.location.origin + target } });
-      if (error) toast.error(error.message.includes("registered") ? "هذا البريد مسجل بالفعل" : "تعذر إنشاء الحساب، تأكد من البيانات");
+      if (error) toast.error(signUpErrorMessage(error));
       else setSent(true);
     }
     setBusy(false);
