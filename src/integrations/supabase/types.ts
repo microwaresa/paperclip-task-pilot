@@ -14,6 +14,38 @@ export type Database = {
   }
   public: {
     Tables: {
+      merchant_payouts: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          merchant_id: string
+          note: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          merchant_id: string
+          note?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          merchant_id?: string
+          note?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "merchant_payouts_merchant_id_fkey"
+            columns: ["merchant_id"]
+            isOneToOne: false
+            referencedRelation: "merchants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       merchant_products: {
         Row: {
           active: boolean
@@ -72,6 +104,7 @@ export type Database = {
       }
       merchants: {
         Row: {
+          commission_rate: number
           created_at: string
           description: string
           id: string
@@ -81,6 +114,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          commission_rate?: number
           created_at?: string
           description?: string
           id?: string
@@ -90,6 +124,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          commission_rate?: number
           created_at?: string
           description?: string
           id?: string
@@ -102,6 +137,7 @@ export type Database = {
       }
       order_items: {
         Row: {
+          commission_rate: number
           created_at: string
           id: string
           merchant_id: string | null
@@ -113,6 +149,7 @@ export type Database = {
           status: string
         }
         Insert: {
+          commission_rate?: number
           created_at?: string
           id?: string
           merchant_id?: string | null
@@ -124,6 +161,7 @@ export type Database = {
           status?: string
         }
         Update: {
+          commission_rate?: number
           created_at?: string
           id?: string
           merchant_id?: string | null

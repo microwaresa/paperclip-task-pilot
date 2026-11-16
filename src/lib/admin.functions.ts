@@ -69,7 +69,7 @@ export const adminListMerchants = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     await assertAdmin(context);
-    const { data, error } = await context.supabase.from("merchants").select("id, store_name, slug, description, status, created_at").order("created_at", { ascending: false });
+    const { data, error } = await context.supabase.from("merchants").select("id, store_name, slug, description, status, commission_rate, created_at").order("created_at", { ascending: false });
     if (error) throw new Error("تعذر تحميل البائعين");
     return data;
   });
@@ -81,5 +81,48 @@ export const adminSetMerchantStatus = createServerFn({ method: "POST" })
     await assertAdmin(context);
     const { error } = await context.supabase.from("merchants").update({ status: data.status }).eq("id", data.id);
     if (error) throw new Error("تعذر تحديث حالة البائع");
+    return { ok: true };
+  });
+
+export const adminSetCommission = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: { id: string; rate: number }) => z.object({ id: z.string().uuid(), rate: z.number().min(0).max(100) }).parse(i))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const { error } = await context.supabase.from("merchants").update({ commission_rate: data.rate }).eq("id", data.id);
+    if (error) throw new Error("تعذر حفظ العمولة");
+    return { ok: true };
+  });
+
+export const adminMerchantLedger = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: { id: string }) => z.object({ id: z.string().uuid() }).parse(i))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const [lines, payouts] = await Promise.all([
+      context.supabase.from("order_items").select("price, qty, status, commission_rate").eq("merchant_id", data.id),
+      context.supabase.from("merchant_payouts").select("id, amount, note, created_at").eq("merchant_id", data.id).order("created_at", { ascending: false }),
+    ]);
+    if (lines.error || payouts.error) throw new Error("تعذر تحميل الأرباح");
+    return { lines: lines.data, payouts: payouts.data };
+  });
+
+export const adminAddPayout = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: { id: string; amount: number; note: string }) => z.object({ id: z.string().uuid(), amount: z.number().positive().max(10_000_000), note: z.string().trim().max(200) }).parse(i))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const { error } = await context.supabase.from("merchant_payouts").insert({ merchant_id: data.id, amount: data.amount, note: data.note });
+    if (error) throw new Error("تعذر تسجيل الدفعة");
+    return { ok: true };
+  });
+
+export const adminDeletePayout = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: { id: string }) => z.object({ id: z.string().uuid() }).parse(i))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const { error } = await context.supabase.from("merchant_payouts").delete().eq("id", data.id);
+    if (error) throw new Error("تعذر حذف الدفعة");
     return { ok: true };
   });

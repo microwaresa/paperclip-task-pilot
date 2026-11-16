@@ -7,15 +7,16 @@ import { Clock, ExternalLink, Pencil, Plus, Trash2 } from "lucide-react";
 import { categories, fmt } from "@/lib/catalog";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  advanceOrderLine, applyAsMerchant, deleteProduct, getMyMerchant, listMyOrderLines, listMyProducts, saveProduct, updateMyStore,
+  advanceOrderLine, applyAsMerchant, deleteProduct, getMyMerchant, listMyOrderLines, listMyPayouts, listMyProducts, saveProduct, updateMyStore,
 } from "@/lib/merchant.functions";
-import { nextSellerStatus, sellerSummary } from "@/lib/merchant-stats";
+import { nextSellerStatus, sellerEarnings, sellerSummary } from "@/lib/merchant-stats";
 import { NO_IMAGE } from "@/lib/market";
 import { StoreLayout } from "@/components/store/StoreLayout";
 
 const merchantQuery = queryOptions({ queryKey: ["my-merchant"], queryFn: () => getMyMerchant() });
 const productsQuery = queryOptions({ queryKey: ["my-products"], queryFn: () => listMyProducts() });
 const linesQuery = queryOptions({ queryKey: ["my-order-lines"], queryFn: () => listMyOrderLines(), refetchInterval: 30_000 });
+const payoutsQuery = queryOptions({ queryKey: ["my-payouts"], queryFn: () => listMyPayouts() });
 const statusLabel: Record<string, string> = { pending: "بانتظار الشحن", shipped: "تم الشحن", delivered: "تم التوصيل", cancelled: "ملغي" };
 const input = "mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm";
 
@@ -132,6 +133,7 @@ function Summary() {
   ];
   return (
     <>
+      <Earnings lines={data} />
       <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
         {cards.map((c) => <div key={c.l} className="rounded-lg bg-card p-4"><div className="text-xs text-muted-foreground">{c.l}</div><div className="mt-1 text-xl font-black">{c.v}</div></div>)}
       </div>
@@ -142,6 +144,31 @@ function Summary() {
         )}
       </section>
     </>
+  );
+}
+
+function Earnings({ lines }: { lines: { price: number; qty: number; status: string; commission_rate: number }[] }) {
+  const { data: merchant } = useSuspenseQuery(merchantQuery);
+  const { data: payouts = [] } = useQuery(payoutsQuery);
+  const e = sellerEarnings(lines, payouts);
+  const cards = [
+    { l: "إجمالي المبيعات المُسلّمة", v: e.gross },
+    { l: `عمولة سين (${fmt(Number(merchant?.commission_rate ?? 0))}٪)`, v: e.commission },
+    { l: "صافي أرباحك", v: e.net },
+    { l: "تم دفعه لك", v: e.paid },
+    { l: "رصيدك المستحق", v: e.balance, strong: true },
+  ];
+  return (
+    <section className="rounded-lg bg-card p-4">
+      <h2 className="mb-1 font-black">أرباحك والدفعات</h2>
+      <p className="mb-3 text-xs text-muted-foreground">تُحتسب الأرباح بعد توصيل الطلب. تحوّل إدارة سين رصيدك وتسجّل كل دفعة هنا.</p>
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+        {cards.map((c) => <div key={c.l} className={`rounded-lg p-3 ${c.strong ? "bg-secondary text-secondary-foreground" : "bg-muted"}`}><div className="text-xs opacity-80">{c.l}</div><div className="mt-1 text-lg font-black">{fmt(c.v)} ج.م</div></div>)}
+      </div>
+      {payouts.length > 0 && (
+        <ul className="mt-3 divide-y text-sm">{payouts.map((p) => <li key={p.id} className="flex justify-between py-2"><span>{new Date(p.created_at).toLocaleDateString("ar-EG", { dateStyle: "medium" })}{p.note ? ` · ${p.note}` : ""}</span><span className="font-bold">{fmt(Number(p.amount))} ج.م</span></li>)}</ul>
+      )}
+    </section>
   );
 }
 

@@ -4,7 +4,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { fmt } from "@/lib/catalog";
-import { adminListMerchants, adminListOrders, adminSetMerchantStatus, adminUpdateDelivery, adminUpdateStatus, ORDER_STATUSES } from "@/lib/admin.functions";
+import { adminAddPayout, adminDeletePayout, adminMerchantLedger, adminSetCommission, adminListMerchants, adminListOrders, adminSetMerchantStatus, adminUpdateDelivery, adminUpdateStatus, ORDER_STATUSES } from "@/lib/admin.functions";
+import { sellerEarnings } from "@/lib/merchant-stats";
 import { deliveryQuery } from "@/lib/settings.functions";
 import { StoreLayout } from "@/components/store/StoreLayout";
 
@@ -150,6 +151,7 @@ function MerchantsPanel() {
       toast.success("تم تحديث حالة البائع");
     } catch (err) { toast.error((err as Error).message); }
   }
+  const [open, setOpen] = useState<string | null>(null);
   const pending = data?.filter((m) => m.status === "pending").length ?? 0;
   return (
     <section className="rounded-lg bg-card p-4">
@@ -164,11 +166,72 @@ function MerchantsPanel() {
                 <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-bold">{merchantStatusLabel[m.status]}</span>
                 {m.status !== "approved" && <button onClick={() => change(m.id, "approved")} className="rounded-md bg-primary px-3 py-1 font-bold text-primary-foreground">اعتماد</button>}
                 {m.status === "approved" && <button onClick={() => change(m.id, "suspended")} className="rounded-md border px-3 py-1 font-bold text-destructive">إيقاف</button>}
+                <button onClick={() => setOpen(open === m.id ? null : m.id)} className="rounded-md border px-3 py-1 font-bold">{open === m.id ? "إخفاء" : "العمولة والدفعات"}</button>
               </div>
+              {open === m.id && <MerchantLedger id={m.id} rate={Number(m.commission_rate)} />}
             </li>
           ))}
         </ul>
       )}
     </section>
+  );
+}
+
+function MerchantLedger({ id, rate }: { id: string; rate: number }) {
+  const qc = useQueryClient();
+  const load = useServerFn(adminMerchantLedger);
+  const saveRate = useServerFn(adminSetCommission);
+  const addPayout = useServerFn(adminAddPayout);
+  const delPayout = useServerFn(adminDeletePayout);
+  const key = ["admin-ledger", id];
+  const { data } = useQuery({ queryKey: key, queryFn: () => load({ data: { id } }) });
+  const [r, setR] = useState(String(rate));
+  const [amount, setAmount] = useState("");
+  const [note, setNote] = useState("");
+  const e = data ? sellerEarnings(data.lines, data.payouts) : null;
+  async function run(fn: () => Promise<unknown>, ok: string) {
+    try { await fn(); await Promise.all([qc.invalidateQueries({ queryKey: key }), qc.invalidateQueries({ queryKey: ["admin-merchants"] })]); toast.success(ok); }
+    catch (err) { toast.error((err as Error).message); }
+  }
+  function onRate(ev: FormEvent) {
+    ev.preventDefault();
+    const n = Number(r);
+    if (!Number.isFinite(n) || n < 0 || n > 100) { toast.error("العمولة بين ٠ و١٠٠٪"); return; }
+    void run(() => saveRate({ data: { id, rate: n } }), "تم حفظ العمولة — تُطبّق على الطلبات الجديدة");
+  }
+  function onPay(ev: FormEvent) {
+    ev.preventDefault();
+    const n = Number(amount);
+    if (!(n > 0)) { toast.error("أدخل مبلغًا صحيحًا"); return; }
+    if (e && n > e.balance) { toast.error("المبلغ أكبر من الرصيد المستحق"); return; }
+    void run(async () => { await addPayout({ data: { id, amount: n, note } }); setAmount(""); setNote(""); }, "تم تسجيل الدفعة");
+  }
+  const box = "rounded-md border bg-background px-2 py-1";
+  return (
+    <div className="w-full space-y-3 rounded-md bg-muted p-3">
+      <form onSubmit={onRate} className="flex flex-wrap items-center gap-2">
+        <label className="font-bold">نسبة العمولة ٪</label>
+        <input aria-label="نسبة العمولة" type="number" min={0} max={100} step="0.5" value={r} onChange={(x) => setR(x.target.value)} className={`${box} w-24`} />
+        <button className="rounded-md bg-secondary px-3 py-1 font-bold text-secondary-foreground">حفظ</button>
+      </form>
+      {!e ? <p>جارٍ التحميل...</p> : (
+        <>
+          <p>مبيعات مُسلّمة {fmt(e.gross)} · عمولة {fmt(e.commission)} · صافي البائع {fmt(e.net)} · مدفوع {fmt(e.paid)} · <b>المستحق {fmt(e.balance)} ج.م</b></p>
+          <form onSubmit={onPay} className="flex flex-wrap items-center gap-2">
+            <input aria-label="مبلغ الدفعة" type="number" min={1} step="0.01" placeholder="المبلغ" value={amount} onChange={(x) => setAmount(x.target.value)} className={`${box} w-28`} />
+            <input aria-label="ملاحظة" placeholder="ملاحظة (مثلاً تحويل بنكي)" value={note} maxLength={200} onChange={(x) => setNote(x.target.value)} className={`${box} flex-1`} />
+            <button className="rounded-md bg-primary px-3 py-1 font-bold text-primary-foreground">تسجيل دفعة</button>
+          </form>
+          {data!.payouts.length > 0 && (
+            <ul className="divide-y">{data!.payouts.map((p) => (
+              <li key={p.id} className="flex items-center justify-between py-1">
+                <span>{new Date(p.created_at).toLocaleDateString("ar-EG", { dateStyle: "medium" })}{p.note ? ` · ${p.note}` : ""}</span>
+                <span className="flex items-center gap-2 font-bold">{fmt(Number(p.amount))} ج.م
+                  <button onClick={() => { if (confirm("حذف هذه الدفعة؟")) void run(() => delPayout({ data: { id: p.id } }), "تم حذف الدفعة"); }} className="text-xs text-destructive">حذف</button></span>
+              </li>))}</ul>
+          )}
+        </>
+      )}
+    </div>
   );
 }

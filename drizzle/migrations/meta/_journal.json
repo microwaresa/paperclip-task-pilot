@@ -43,6 +43,13 @@
       "when": 1794811831908,
       "tag": "0005_product_gallery",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794813729009,
+      "tag": "0006_seller_commission_payouts",
+      "breakpoints": true
     }
   ]
 }

@@ -9,7 +9,7 @@ const catSlugs = categories.map((c) => c.slug) as [string, ...string[]];
 export const getMyMerchant = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data } = await context.supabase.from("merchants").select("id, store_name, slug, description, status, created_at").eq("user_id", context.userId).maybeSingle();
+    const { data } = await context.supabase.from("merchants").select("id, store_name, slug, description, status, commission_rate, created_at").eq("user_id", context.userId).maybeSingle();
     return data;
   });
 
@@ -93,7 +93,7 @@ export const listMyOrderLines = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const m = await myMerchantId(context);
     const { data, error } = await context.supabase.from("order_items")
-      .select("id, order_id, product_id, name, price, qty, status, created_at, orders(full_name, phone, city, address, notes)")
+      .select("id, order_id, product_id, name, price, qty, status, commission_rate, created_at, orders(full_name, phone, city, address, notes)")
       .eq("merchant_id", m.id).order("created_at", { ascending: false }).limit(500);
     if (error) throw new Error("تعذر تحميل الطلبات");
     return data;
@@ -110,4 +110,13 @@ export const advanceOrderLine = createServerFn({ method: "POST" })
     const { error } = await context.supabase.from("order_items").update({ status: next }).eq("id", data.id).eq("merchant_id", m.id);
     if (error) throw new Error("تعذر تحديث الحالة");
     return { status: next };
+  });
+
+export const listMyPayouts = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const m = await myMerchantId(context);
+    const { data, error } = await context.supabase.from("merchant_payouts").select("id, amount, note, created_at").eq("merchant_id", m.id).order("created_at", { ascending: false });
+    if (error) throw new Error("تعذر تحميل الدفعات");
+    return data;
   });
