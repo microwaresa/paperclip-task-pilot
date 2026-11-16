@@ -1,5 +1,6 @@
 # Roadmap
 - [x] Restrict product photo file access and verify public store settings security findings (anonymous listing blocked; seller listing/signing and shopper photos verified).
+- [x] Sweep all photo/settings consumers for the same access issue; document checked paths and verification limits in security-access-review.md.
 - [x] Replace the supplied yellow #FEE16C with a sage green that pairs with #22352C.
 - [x] Replace the supplied mint brand color with white.
 - [x] Apply supplied brand palette and footer tagline; verify mobile hook regression test.
