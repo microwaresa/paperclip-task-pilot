@@ -34,3 +34,4 @@ use the editor.
 - Orders are inserted only by the `placeOrder` server function, which recomputes prices from the catalog; shoppers have SELECT-only access to their own orders. Why: the browser can't tamper with prices.
 - Cart and favorites are stored in the browser (`src/lib/cart.tsx`), not the database. Why: shopping works signed out; sign-in is required only at checkout.
 - Delivery-fee rules live in `src/lib/pricing.ts` with tests in `pricing.test.ts`.
+- AI shopping assistant: `getRecommendations` server fn (src/lib/assistant.functions.ts) calls Lovable AI Gateway from `src/lib/ai/recommend.server.ts` with the catalog in the prompt and a strict schema limited to catalog ids. Why: the model can only recommend real products; prices always come from the catalog.
