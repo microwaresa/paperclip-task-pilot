@@ -253,14 +253,21 @@ function WithdrawalsPanel() {
   const { data = [] } = useQuery({ queryKey: ["admin-withdrawals"], queryFn: () => load(), refetchInterval: 30_000 });
   const [showAll, setShowAll] = useState(false);
   const shown = showAll ? data : data.filter((w) => w.status === "pending");
-  async function act(id: string, decision: "paid" | "rejected") {
-    const note = prompt(decision === "paid" ? "ملاحظة الدفعة (مثلاً رقم التحويل):" : "سبب الرفض:") ;
-    if (note === null) return;
+  const [open, setOpen] = useState<{ id: string; decision: "paid" | "rejected" } | null>(null);
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+  function start(id: string, decision: "paid" | "rejected") { setOpen({ id, decision }); setNote(""); }
+  async function confirm(ev: FormEvent) {
+    ev.preventDefault();
+    if (!open) return;
+    if (open.decision === "rejected" && note.trim().length < 3) { toast.error("اكتب سبب الرفض ليعرفه البائع"); return; }
+    setBusy(true);
     try {
-      await decide({ data: { id, decision, note } });
+      await decide({ data: { id: open.id, decision: open.decision, note } });
       await Promise.all([qc.invalidateQueries({ queryKey: ["admin-withdrawals"] }), qc.invalidateQueries({ queryKey: ["admin-ledger"] })]);
-      toast.success(decision === "paid" ? "تم تسجيل الدفع" : "تم رفض الطلب");
-    } catch (err) { toast.error((err as Error).message); }
+      toast.success(open.decision === "paid" ? "تم تسجيل الدفع" : "تم رفض الطلب");
+      setOpen(null);
+    } catch (err) { toast.error((err as Error).message); } finally { setBusy(false); }
   }
   return (
     <section className="rounded-lg bg-card p-4">
@@ -275,12 +282,24 @@ function WithdrawalsPanel() {
               <div className="font-bold">{w.merchants?.store_name} · {fmt(Number(w.amount))} ج.م · {wLabel[w.method]}</div>
               <div className="text-xs text-muted-foreground">{new Date(w.created_at).toLocaleDateString("ar-EG", { dateStyle: "medium" })} · {w.account_details}{w.admin_note ? ` · ${w.admin_note}` : ""}</div>
             </div>
-            {w.status === "pending" ? (
+            {w.status !== "pending" ? <span className="text-xs font-bold">{wLabel[w.status]}</span> : open?.id !== w.id ? (
               <span className="flex gap-2">
-                <button onClick={() => void act(w.id, "paid")} className="rounded-md bg-primary px-3 py-1 font-bold text-primary-foreground">تم الدفع</button>
-                <button onClick={() => void act(w.id, "rejected")} className="rounded-md bg-muted px-3 py-1 font-bold text-destructive">رفض</button>
+                <button onClick={() => start(w.id, "paid")} className="rounded-md bg-primary px-3 py-1 font-bold text-primary-foreground">تم الدفع</button>
+                <button onClick={() => start(w.id, "rejected")} className="rounded-md bg-muted px-3 py-1 font-bold text-destructive">رفض</button>
               </span>
-            ) : <span className="text-xs font-bold">{wLabel[w.status]}</span>}
+            ) : null}
+            {open?.id === w.id && (
+              <form onSubmit={confirm} className={`w-full space-y-2 rounded-md border-2 p-3 ${open.decision === "paid" ? "border-primary bg-muted" : "border-destructive bg-muted"}`}>
+                <div className="font-bold">{open.decision === "paid" ? `تأكيد دفع ${fmt(Number(w.amount))} ج.م إلى ${w.merchants?.store_name ?? ""}` : "رفض طلب السحب"}</div>
+                <p className="text-xs text-muted-foreground">{open.decision === "paid" ? `حوّل المبلغ أولًا عبر ${wLabel[w.method]} إلى: ${w.account_details}` : "سيظهر السبب للبائع في صفحة السحب."}</p>
+                <input autoFocus aria-label={open.decision === "paid" ? "رقم التحويل" : "سبب الرفض"} maxLength={200} value={note} onChange={(x) => setNote(x.target.value)}
+                  placeholder={open.decision === "paid" ? "رقم التحويل أو المرجع (اختياري)" : "مثلاً: بيانات الحساب غير صحيحة"} className="w-full rounded-md border bg-background px-3 py-2" />
+                <div className="flex gap-2">
+                  <button disabled={busy} className={`rounded-md px-4 py-1.5 font-bold disabled:opacity-60 ${open.decision === "paid" ? "bg-primary text-primary-foreground" : "bg-destructive text-destructive-foreground"}`}>{busy ? "جارٍ..." : open.decision === "paid" ? "تأكيد الدفع" : "تأكيد الرفض"}</button>
+                  <button type="button" onClick={() => setOpen(null)} className="rounded-md bg-card px-4 py-1.5 font-bold">إلغاء</button>
+                </div>
+              </form>
+            )}
           </li>))}</ul>
       )}
     </section>
