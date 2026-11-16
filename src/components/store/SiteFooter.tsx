@@ -5,7 +5,7 @@ export function SiteFooter() {
   return (
     <footer className="mt-10 bg-secondary text-secondary-foreground">
       <div className="mx-auto grid max-w-7xl gap-6 px-4 py-10 text-sm md:grid-cols-4">
-        <div><div className="text-3xl font-black text-primary">سين</div><p className="mt-2 opacity-70">وجهتك الأولى للتسوق أونلاين في مصر.</p></div>
+        <div><div className="text-3xl font-black text-primary">سين</div><p className="mt-2 opacity-70">اكتشف عالمًا من الاختيارات</p></div>
         <div>
           <div className="mb-2 font-bold">الأقسام</div>
           {categories.slice(0, 5).map((c) => (

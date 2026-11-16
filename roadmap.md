@@ -1,4 +1,5 @@
 # Roadmap
+- [x] Apply supplied brand palette and footer tagline; verify mobile hook regression test.
 - [x] Product catalog shared module + product detail pages
 - [x] Cart (saved in browser) + cart page + checkout (cash on delivery)
 - [x] Search page + category pages, wire header search & category links
