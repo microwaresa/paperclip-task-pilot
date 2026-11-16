@@ -40,3 +40,5 @@ use the editor.
 - Seller product photos live in the private `product-images` bucket (public buckets are blocked in this workspace); the app stores a long-lived signed URL in `image_url`.
 - Discount codes live in `coupons` (merchant_id null = store-wide, admin; else seller-only); `placeOrder` validates via `applyCoupon` in pricing.ts and increments usage atomically with `use_coupon`; seller-code discounts are stored per line in `order_items.discount` and reduce seller earnings. Timed offers are `merchant_products.sale_price/sale_ends_at`, resolved by `effectivePrice`. Why: discounts stay server-authoritative.
 - Seller new-order alerts: `SellerBell` (src/lib/seller-alerts.tsx, mounted in SiteHeader) subscribes to realtime INSERTs on `order_items` filtered by merchant_id (RLS limits rows) and counts lines newer than a browser-stored "seen" time; opening the Orders tab marks them seen. Why: no extra table, works on any page.
+
+- Admin presentation uses one RTL tabbed workspace with separate orders, sellers, withdrawals, coupons, and settings views; existing server functions remain authoritative so reorganizing the interface cannot change business rules.

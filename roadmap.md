@@ -13,3 +13,5 @@
 - [ ] Verify signed-in checkout end-to-end (blocked: no store account exists yet)
 - [x] Marketplace: seller sign-up + admin approval, seller products/orders/sales dashboard, public store pages
 - [ ] Verify the seller flow end-to-end signed in (apply → approve → add product → order → ship)
+
+- [x] Separate admin orders, sellers, withdrawals, coupons, and settings into focused views (signed-in visual check blocked: session permission denied).

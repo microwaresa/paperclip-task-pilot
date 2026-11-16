@@ -3,6 +3,9 @@ import { queryOptions, useQuery, useQueryClient, useSuspenseQuery } from "@tanst
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState, type FormEvent } from "react";
 import { toast } from "sonner";
+import { Package, Store, Wallet, TicketPercent, Settings, Search, RefreshCw, Truck, CheckCheck } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { fmt } from "@/lib/catalog";
 import { adminDecideWithdrawal, adminListWithdrawals, adminAddPayout, adminDeletePayout, adminMerchantLedger, adminSetCommission, adminListMerchants, adminListOrders, adminSetMerchantStatus, adminUpdateDelivery, adminUpdateStatus, ORDER_STATUSES } from "@/lib/admin.functions";
 import { sellerEarnings } from "@/lib/merchant-stats";
@@ -36,7 +39,7 @@ function AdminError({ error, reset }: ErrorComponentProps) {
     <StoreLayout>
       <div className="rounded-lg bg-card py-16 text-center">
         <p className="font-bold">{(error as Error)?.message || "تعذر فتح لوحة الإدارة"}</p>
-        <button onClick={() => { router.invalidate(); reset(); }} className="mt-4 rounded-md bg-primary px-4 py-2 font-bold text-primary-foreground">حاول مرة أخرى</button>
+        <Button onClick={() => { router.invalidate(); reset(); }} className="mt-4 rounded-md bg-primary px-4 py-2 font-bold text-primary-foreground">حاول مرة أخرى</Button>
       </div>
     </StoreLayout>
   );
@@ -67,7 +70,7 @@ function DeliveryForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="flex flex-wrap items-end gap-3 rounded-lg bg-card p-4">
+    <form onSubmit={onSubmit} className="flex flex-wrap items-end gap-5">
       <h2 className="w-full text-lg font-black">رسوم التوصيل ودفعات البائعين</h2>
       <label className="text-sm font-bold">رسوم التوصيل (ج.م)
         <input aria-label="رسوم التوصيل" type="number" min={0} value={fee} onChange={(e) => setFee(e.target.value)} className="mt-1 block w-32 rounded-md border bg-background px-3 py-2" />
@@ -78,17 +81,19 @@ function DeliveryForm() {
       <label className="text-sm font-bold">مدة انتظار أرباح البائع (أيام بعد التوصيل)
         <input aria-label="مدة انتظار الأرباح بالأيام" type="number" min={0} max={90} value={hold} onChange={(e) => setHold(e.target.value)} className="mt-1 block w-32 rounded-md border bg-background px-3 py-2" />
       </label>
-      <button disabled={busy} className="rounded-md bg-primary px-4 py-2 font-bold text-primary-foreground disabled:opacity-50">حفظ</button>
+      <Button disabled={busy} className="rounded-md bg-primary px-4 py-2 font-bold text-primary-foreground disabled:opacity-50">حفظ</Button>
     </form>
   );
 }
 
-function AdminPage() {
+function OrdersPanel() {
   const qc = useQueryClient();
   const { data: orders } = useSuspenseQuery(adminOrdersQuery);
   const update = useServerFn(adminUpdateStatus);
   const [filter, setFilter] = useState<string>("all");
-  const shown = filter === "all" ? orders : orders.filter((o) => o.status === filter);
+  const [search, setSearch] = useState("");
+  const shown = orders.filter((o) => (filter === "all" || o.status === filter) &&
+    `${o.id} ${o.full_name} ${o.phone} ${o.city}`.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()));
 
   async function changeStatus(id: string, status: string) {
     try {
@@ -99,18 +104,20 @@ function AdminPage() {
   }
 
   return (
-    <StoreLayout>
-      <h1 className="text-2xl font-black">لوحة الإدارة</h1>
-      <DeliveryForm />
-      <CouponManager scope="store" />
-      <WithdrawalsPanel />
-      <MerchantsPanel />
+    <section className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-4">
+        <h2 className="text-lg font-black">الطلبات</h2>
+        <label className="flex w-full items-center gap-2 rounded-md border bg-background px-3 sm:w-72">
+          <Search className="size-4 shrink-0 text-muted-foreground" />
+          <input aria-label="البحث في الطلبات" placeholder="اسم العميل، الهاتف، رقم الطلب" value={search} onChange={(e) => setSearch(e.target.value)} className="min-w-0 flex-1 bg-transparent py-2 text-sm outline-none" />
+        </label>
+      </div>
       <div className="flex flex-wrap items-center gap-2">
         <h2 className="text-lg font-black">الطلبات ({fmt(orders.length)})</h2>
         {["all", ...ORDER_STATUSES].map((s) => (
-          <button key={s} onClick={() => setFilter(s)} className={`rounded-full px-3 py-1 text-sm font-bold ${filter === s ? "bg-primary text-primary-foreground" : "bg-card"}`}>
-            {s === "all" ? "الكل" : statusLabel[s]}
-          </button>
+          <Button key={s} onClick={() => setFilter(s)} className={`rounded-full px-3 py-1 text-sm font-bold ${filter === s ? "bg-primary text-primary-foreground" : "bg-card"}`}>
+            {s === "all" ? "الكل" : statusLabel[s]} <span className="text-xs">{fmt(s === "all" ? orders.length : orders.filter((o) => o.status === s).length)}</span>
+          </Button>
         ))}
       </div>
       {shown.length === 0 ? (
@@ -122,8 +129,8 @@ function AdminPage() {
               <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-2">
                 <div><span className="font-black">طلب #{o.id.slice(0, 8).toUpperCase()}</span> <span className="text-muted-foreground">· {new Date(o.created_at).toLocaleString("ar-EG", { dateStyle: "medium", timeStyle: "short" })}</span></div>
                 <div className="flex flex-wrap items-center gap-2">
-                {o.status === "pending" && <button onClick={() => changeStatus(o.id, "shipped")} className="rounded-md bg-primary px-3 py-1 font-bold text-primary-foreground">تم الشحن</button>}
-                {o.status === "shipped" && <button onClick={() => changeStatus(o.id, "delivered")} className="rounded-md bg-primary px-3 py-1 font-bold text-primary-foreground">تم التوصيل</button>}
+                {o.status === "pending" && <Button onClick={() => changeStatus(o.id, "shipped")} className="rounded-md bg-primary px-3 py-1 font-bold text-primary-foreground">تم الشحن</Button>}
+                {o.status === "shipped" && <Button onClick={() => changeStatus(o.id, "delivered")} className="rounded-md bg-primary px-3 py-1 font-bold text-primary-foreground">تم التوصيل</Button>}
                 <select aria-label="حالة الطلب" value={o.status} onChange={(e) => changeStatus(o.id, e.target.value)} className="rounded-md border bg-background px-2 py-1 font-bold">
                   {ORDER_STATUSES.map((s) => <option key={s} value={s}>{statusLabel[s]}</option>)}
                 </select>
@@ -140,6 +147,55 @@ function AdminPage() {
           ))}
         </ul>
       )}
+    </section>
+  );
+}
+
+const adminSections = [
+  { id: "orders", label: "الطلبات", icon: Package },
+  { id: "merchants", label: "البائعون", icon: Store },
+  { id: "withdrawals", label: "طلبات السحب", icon: Wallet },
+  { id: "coupons", label: "أكواد الخصم", icon: TicketPercent },
+  { id: "settings", label: "الإعدادات", icon: Settings },
+];
+
+function AdminPage() {
+  const qc = useQueryClient();
+  const { data: orders } = useSuspenseQuery(adminOrdersQuery);
+  const [refreshing, setRefreshing] = useState(false);
+  const metrics = [
+    { label: "إجمالي الطلبات", value: orders.length, icon: Package },
+    { label: "قيد التجهيز", value: orders.filter((o) => o.status === "pending").length, icon: Store },
+    { label: "في الطريق", value: orders.filter((o) => o.status === "shipped").length, icon: Truck },
+    { label: "تم التوصيل", value: orders.filter((o) => o.status === "delivered").length, icon: CheckCheck },
+  ];
+  async function refresh() {
+    setRefreshing(true);
+    try {
+      await Promise.all(["admin-orders", "admin-merchants", "admin-withdrawals", "admin-ledger", "coupons"].map((key) => qc.invalidateQueries({ queryKey: [key] })));
+    } finally { setRefreshing(false); }
+  }
+  return (
+    <StoreLayout>
+      <header className="flex items-center justify-between gap-3 border-b pb-4">
+        <div><p className="mb-1 text-xs font-bold text-muted-foreground">سين / الإدارة</p><h1 className="text-2xl font-black">لوحة الإدارة</h1></div>
+        <Button variant="outline" size="icon" aria-label="تحديث البيانات" title="تحديث البيانات" disabled={refreshing} onClick={refresh}><RefreshCw className={refreshing ? "animate-spin" : ""} /></Button>
+      </header>
+      <dl className="grid grid-cols-2 gap-x-4 gap-y-5 border-b pb-6 md:grid-cols-4">
+        {metrics.map(({ label, value, icon: Icon }) => <div key={label} className="border-s-2 border-primary ps-3"><dt className="flex items-center gap-2 text-sm text-muted-foreground"><Icon className="size-4 shrink-0" />{label}</dt><dd className="mt-2 text-2xl font-black">{fmt(value)}</dd></div>)}
+      </dl>
+      <Tabs defaultValue="orders" dir="rtl" className="grid min-w-0 gap-5 lg:grid-cols-[190px_minmax(0,1fr)]">
+        <TabsList aria-label="أقسام الإدارة" className="h-auto w-full flex-wrap justify-start gap-1 rounded-none border-b bg-transparent p-0 pb-3 lg:flex-col lg:items-stretch lg:self-start lg:border-b-0 lg:border-e lg:pe-3">
+          {adminSections.map(({ id, label, icon: Icon }) => <TabsTrigger key={id} value={id} className="min-h-10 gap-2 px-3 data-[state=active]:bg-secondary data-[state=active]:text-secondary-foreground data-[state=active]:shadow-none lg:justify-start"><Icon className="size-4 shrink-0" />{label}</TabsTrigger>)}
+        </TabsList>
+        <div className="min-w-0">
+          <TabsContent value="orders" className="mt-0"><OrdersPanel /></TabsContent>
+          <TabsContent value="merchants" className="mt-0"><MerchantsPanel /></TabsContent>
+          <TabsContent value="withdrawals" className="mt-0"><WithdrawalsPanel /></TabsContent>
+          <TabsContent value="coupons" className="mt-0"><CouponManager scope="store" /></TabsContent>
+          <TabsContent value="settings" className="mt-0"><DeliveryForm /></TabsContent>
+        </div>
+      </Tabs>
     </StoreLayout>
   );
 }
@@ -161,7 +217,7 @@ function MerchantsPanel() {
   const [open, setOpen] = useState<string | null>(null);
   const pending = data?.filter((m) => m.status === "pending").length ?? 0;
   return (
-    <section className="rounded-lg bg-card p-4">
+    <section className="space-y-4">
       <h2 className="mb-2 text-lg font-black">البائعون {pending > 0 && <span className="rounded-full bg-destructive px-2 text-xs text-destructive-foreground">{fmt(pending)} جديد</span>}</h2>
       {!data?.length ? <p className="text-sm text-muted-foreground">لا يوجد بائعون بعد</p> : (
         <ul className="divide-y text-sm">
@@ -169,11 +225,11 @@ function MerchantsPanel() {
             <li key={m.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
               <div><span className="font-bold">{m.store_name}</span> <span className="text-xs text-muted-foreground" dir="ltr">/store/{m.slug}</span>
                 {m.description && <p className="text-xs text-muted-foreground">{m.description}</p>}</div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-bold">{merchantStatusLabel[m.status]}</span>
-                {m.status !== "approved" && <button onClick={() => change(m.id, "approved")} className="rounded-md bg-primary px-3 py-1 font-bold text-primary-foreground">اعتماد</button>}
-                {m.status === "approved" && <button onClick={() => change(m.id, "suspended")} className="rounded-md border px-3 py-1 font-bold text-destructive">إيقاف</button>}
-                <button onClick={() => setOpen(open === m.id ? null : m.id)} className="rounded-md border px-3 py-1 font-bold">{open === m.id ? "إخفاء" : "العمولة والدفعات"}</button>
+                {m.status !== "approved" && <Button onClick={() => change(m.id, "approved")} className="rounded-md bg-primary px-3 py-1 font-bold text-primary-foreground">اعتماد</Button>}
+                {m.status === "approved" && <Button onClick={() => change(m.id, "suspended")} className="rounded-md border px-3 py-1 font-bold text-destructive">إيقاف</Button>}
+                <Button onClick={() => setOpen(open === m.id ? null : m.id)} className="rounded-md border px-3 py-1 font-bold">{open === m.id ? "إخفاء" : "العمولة والدفعات"}</Button>
               </div>
               {open === m.id && <MerchantLedger id={m.id} rate={Number(m.commission_rate)} />}
             </li>
@@ -216,11 +272,11 @@ function MerchantLedger({ id, rate }: { id: string; rate: number }) {
   }
   const box = "rounded-md border bg-background px-2 py-1";
   return (
-    <div className="w-full space-y-3 rounded-md bg-muted p-3">
+    <div className="w-full space-y-4 border-t pt-4">
       <form onSubmit={onRate} className="flex flex-wrap items-center gap-2">
         <label className="font-bold">نسبة العمولة ٪</label>
         <input aria-label="نسبة العمولة" type="number" min={0} max={100} step="0.5" value={r} onChange={(x) => setR(x.target.value)} className={`${box} w-24`} />
-        <button className="rounded-md bg-secondary px-3 py-1 font-bold text-secondary-foreground">حفظ</button>
+        <Button className="rounded-md bg-secondary px-3 py-1 font-bold text-secondary-foreground">حفظ</Button>
       </form>
       {!e ? <p>جارٍ التحميل...</p> : (
         <>
@@ -228,14 +284,14 @@ function MerchantLedger({ id, rate }: { id: string; rate: number }) {
           <form onSubmit={onPay} className="flex flex-wrap items-center gap-2">
             <input aria-label="مبلغ الدفعة" type="number" min={1} step="0.01" placeholder="المبلغ" value={amount} onChange={(x) => setAmount(x.target.value)} className={`${box} w-28`} />
             <input aria-label="ملاحظة" placeholder="ملاحظة (مثلاً تحويل بنكي)" value={note} maxLength={200} onChange={(x) => setNote(x.target.value)} className={`${box} flex-1`} />
-            <button className="rounded-md bg-primary px-3 py-1 font-bold text-primary-foreground">تسجيل دفعة</button>
+            <Button className="rounded-md bg-primary px-3 py-1 font-bold text-primary-foreground">تسجيل دفعة</Button>
           </form>
-          {data!.payouts.length > 0 && (
-            <ul className="divide-y">{data!.payouts.map((p) => (
+          {(data?.payouts.length ?? 0) > 0 && (
+            <ul className="divide-y">{data?.payouts.map((p) => (
               <li key={p.id} className="flex items-center justify-between py-1">
                 <span>{new Date(p.created_at).toLocaleDateString("ar-EG", { dateStyle: "medium" })}{p.note ? ` · ${p.note}` : ""}</span>
                 <span className="flex items-center gap-2 font-bold">{fmt(Number(p.amount))} ج.م
-                  <button onClick={() => { if (confirm("حذف هذه الدفعة؟")) void run(() => delPayout({ data: { id: p.id } }), "تم حذف الدفعة"); }} className="text-xs text-destructive">حذف</button></span>
+                  <Button onClick={() => { if (confirm("حذف هذه الدفعة؟")) void run(() => delPayout({ data: { id: p.id } }), "تم حذف الدفعة"); }} className="text-xs text-destructive">حذف</Button></span>
               </li>))}</ul>
           )}
         </>
@@ -270,10 +326,10 @@ function WithdrawalsPanel() {
     } catch (err) { toast.error((err as Error).message); } finally { setBusy(false); }
   }
   return (
-    <section className="rounded-lg bg-card p-4">
+    <section className="space-y-4">
       <div className="mb-2 flex items-center justify-between">
         <h2 className="font-black">طلبات السحب ({fmt(data.filter((w) => w.status === "pending").length)} بانتظار المراجعة)</h2>
-        <button onClick={() => setShowAll(!showAll)} className="text-sm font-bold text-accent">{showAll ? "المعلّقة فقط" : "عرض الكل"}</button>
+        <Button onClick={() => setShowAll(!showAll)} className="text-sm font-bold text-accent">{showAll ? "المعلّقة فقط" : "عرض الكل"}</Button>
       </div>
       {shown.length === 0 ? <p className="text-sm text-muted-foreground">لا توجد طلبات</p> : (
         <ul className="divide-y text-sm">{shown.map((w) => (
@@ -284,8 +340,8 @@ function WithdrawalsPanel() {
             </div>
             {w.status !== "pending" ? <span className="text-xs font-bold">{wLabel[w.status]}</span> : open?.id !== w.id ? (
               <span className="flex gap-2">
-                <button onClick={() => start(w.id, "paid")} className="rounded-md bg-primary px-3 py-1 font-bold text-primary-foreground">تم الدفع</button>
-                <button onClick={() => start(w.id, "rejected")} className="rounded-md bg-muted px-3 py-1 font-bold text-destructive">رفض</button>
+                <Button onClick={() => start(w.id, "paid")} className="rounded-md bg-primary px-3 py-1 font-bold text-primary-foreground">تم الدفع</Button>
+                <Button onClick={() => start(w.id, "rejected")} className="rounded-md bg-muted px-3 py-1 font-bold text-destructive">رفض</Button>
               </span>
             ) : null}
             {open?.id === w.id && (
@@ -295,8 +351,8 @@ function WithdrawalsPanel() {
                 <input autoFocus aria-label={open.decision === "paid" ? "رقم التحويل" : "سبب الرفض"} maxLength={200} value={note} onChange={(x) => setNote(x.target.value)}
                   placeholder={open.decision === "paid" ? "رقم التحويل أو المرجع (اختياري)" : "مثلاً: بيانات الحساب غير صحيحة"} className="w-full rounded-md border bg-background px-3 py-2" />
                 <div className="flex gap-2">
-                  <button disabled={busy} className={`rounded-md px-4 py-1.5 font-bold disabled:opacity-60 ${open.decision === "paid" ? "bg-primary text-primary-foreground" : "bg-destructive text-destructive-foreground"}`}>{busy ? "جارٍ..." : open.decision === "paid" ? "تأكيد الدفع" : "تأكيد الرفض"}</button>
-                  <button type="button" onClick={() => setOpen(null)} className="rounded-md bg-card px-4 py-1.5 font-bold">إلغاء</button>
+                  <Button disabled={busy} className={`rounded-md px-4 py-1.5 font-bold disabled:opacity-60 ${open.decision === "paid" ? "bg-primary text-primary-foreground" : "bg-destructive text-destructive-foreground"}`}>{busy ? "جارٍ..." : open.decision === "paid" ? "تأكيد الدفع" : "تأكيد الرفض"}</Button>
+                  <Button type="button" onClick={() => setOpen(null)} className="rounded-md bg-card px-4 py-1.5 font-bold">إلغاء</Button>
                 </div>
               </form>
             )}
