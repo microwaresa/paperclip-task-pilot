@@ -122,3 +122,28 @@ export const listMyPayouts = createServerFn({ method: "GET" })
     if (error) throw new Error("تعذر تحميل الدفعات");
     return data;
   });
+
+export const listMyWithdrawals = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const m = await myMerchantId(context);
+    const { data, error } = await context.supabase.from("withdrawal_requests").select("id, amount, method, account_details, status, admin_note, created_at, decided_at").eq("merchant_id", m.id).order("created_at", { ascending: false });
+    if (error) throw new Error("تعذر تحميل طلبات السحب");
+    return data;
+  });
+
+const withdrawInput = z.object({
+  amount: z.number().min(50).max(10_000_000),
+  method: z.enum(["bank", "instapay", "wallet"]),
+  details: z.string().trim().min(3).max(300),
+});
+
+export const requestWithdrawal = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: z.input<typeof withdrawInput>) => withdrawInput.parse(i))
+  .handler(async ({ data, context }) => {
+    const m = await myMerchantId(context);
+    const { error } = await context.supabase.from("withdrawal_requests").insert({ merchant_id: m.id, amount: Math.round(data.amount * 100) / 100, method: data.method, account_details: data.details });
+    if (error) throw new Error(error.message.includes("exceeds balance") ? "المبلغ أكبر من رصيدك القابل للسحب" : "تعذر إرسال طلب السحب");
+    return { ok: true };
+  });

@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { fmt } from "@/lib/catalog";
-import { adminAddPayout, adminDeletePayout, adminMerchantLedger, adminSetCommission, adminListMerchants, adminListOrders, adminSetMerchantStatus, adminUpdateDelivery, adminUpdateStatus, ORDER_STATUSES } from "@/lib/admin.functions";
+import { adminDecideWithdrawal, adminListWithdrawals, adminAddPayout, adminDeletePayout, adminMerchantLedger, adminSetCommission, adminListMerchants, adminListOrders, adminSetMerchantStatus, adminUpdateDelivery, adminUpdateStatus, ORDER_STATUSES } from "@/lib/admin.functions";
 import { sellerEarnings } from "@/lib/merchant-stats";
 import { CouponManager } from "@/components/store/CouponManager";
 import { deliveryQuery } from "@/lib/settings.functions";
@@ -103,6 +103,7 @@ function AdminPage() {
       <h1 className="text-2xl font-black">لوحة الإدارة</h1>
       <DeliveryForm />
       <CouponManager scope="store" />
+      <WithdrawalsPanel />
       <MerchantsPanel />
       <div className="flex flex-wrap items-center gap-2">
         <h2 className="text-lg font-black">الطلبات ({fmt(orders.length)})</h2>
@@ -240,5 +241,48 @@ function MerchantLedger({ id, rate }: { id: string; rate: number }) {
         </>
       )}
     </div>
+  );
+}
+
+const wLabel: Record<string, string> = { bank: "تحويل بنكي", instapay: "إنستاباي", wallet: "محفظة إلكترونية", pending: "قيد المراجعة", paid: "تم الدفع", rejected: "مرفوض" };
+
+function WithdrawalsPanel() {
+  const qc = useQueryClient();
+  const load = useServerFn(adminListWithdrawals);
+  const decide = useServerFn(adminDecideWithdrawal);
+  const { data = [] } = useQuery({ queryKey: ["admin-withdrawals"], queryFn: () => load(), refetchInterval: 30_000 });
+  const [showAll, setShowAll] = useState(false);
+  const shown = showAll ? data : data.filter((w) => w.status === "pending");
+  async function act(id: string, decision: "paid" | "rejected") {
+    const note = prompt(decision === "paid" ? "ملاحظة الدفعة (مثلاً رقم التحويل):" : "سبب الرفض:") ;
+    if (note === null) return;
+    try {
+      await decide({ data: { id, decision, note } });
+      await Promise.all([qc.invalidateQueries({ queryKey: ["admin-withdrawals"] }), qc.invalidateQueries({ queryKey: ["admin-ledger"] })]);
+      toast.success(decision === "paid" ? "تم تسجيل الدفع" : "تم رفض الطلب");
+    } catch (err) { toast.error((err as Error).message); }
+  }
+  return (
+    <section className="rounded-lg bg-card p-4">
+      <div className="mb-2 flex items-center justify-between">
+        <h2 className="font-black">طلبات السحب ({fmt(data.filter((w) => w.status === "pending").length)} بانتظار المراجعة)</h2>
+        <button onClick={() => setShowAll(!showAll)} className="text-sm font-bold text-accent">{showAll ? "المعلّقة فقط" : "عرض الكل"}</button>
+      </div>
+      {shown.length === 0 ? <p className="text-sm text-muted-foreground">لا توجد طلبات</p> : (
+        <ul className="divide-y text-sm">{shown.map((w) => (
+          <li key={w.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+            <div>
+              <div className="font-bold">{w.merchants?.store_name} · {fmt(Number(w.amount))} ج.م · {wLabel[w.method]}</div>
+              <div className="text-xs text-muted-foreground">{new Date(w.created_at).toLocaleDateString("ar-EG", { dateStyle: "medium" })} · {w.account_details}{w.admin_note ? ` · ${w.admin_note}` : ""}</div>
+            </div>
+            {w.status === "pending" ? (
+              <span className="flex gap-2">
+                <button onClick={() => void act(w.id, "paid")} className="rounded-md bg-primary px-3 py-1 font-bold text-primary-foreground">تم الدفع</button>
+                <button onClick={() => void act(w.id, "rejected")} className="rounded-md bg-muted px-3 py-1 font-bold text-destructive">رفض</button>
+              </span>
+            ) : <span className="text-xs font-bold">{wLabel[w.status]}</span>}
+          </li>))}</ul>
+      )}
+    </section>
   );
 }

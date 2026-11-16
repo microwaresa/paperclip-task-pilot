@@ -7,9 +7,9 @@ import { Clock, ExternalLink, Pencil, Plus, Trash2 } from "lucide-react";
 import { categories, fmt } from "@/lib/catalog";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  advanceOrderLine, applyAsMerchant, deleteProduct, getMyMerchant, listMyOrderLines, listMyPayouts, listMyProducts, saveProduct, updateMyStore,
+  advanceOrderLine, applyAsMerchant, deleteProduct, getMyMerchant, listMyOrderLines, listMyPayouts, listMyProducts, listMyWithdrawals, requestWithdrawal, saveProduct, updateMyStore,
 } from "@/lib/merchant.functions";
-import { nextSellerStatus, sellerEarnings, sellerSummary } from "@/lib/merchant-stats";
+import { nextSellerStatus, sellerEarnings, sellerSummary, withdrawable, WITHDRAW_MIN } from "@/lib/merchant-stats";
 import { NO_IMAGE } from "@/lib/market";
 import { deliveryQuery } from "@/lib/settings.functions";
 import { StoreLayout } from "@/components/store/StoreLayout";
@@ -22,6 +22,9 @@ const merchantQuery = queryOptions({ queryKey: ["my-merchant"], queryFn: () => g
 const productsQuery = queryOptions({ queryKey: ["my-products"], queryFn: () => listMyProducts() });
 const linesQuery = queryOptions({ queryKey: ["my-order-lines"], queryFn: () => listMyOrderLines(), refetchInterval: 30_000 });
 const payoutsQuery = queryOptions({ queryKey: ["my-payouts"], queryFn: () => listMyPayouts() });
+const withdrawalsQuery = queryOptions({ queryKey: ["my-withdrawals"], queryFn: () => listMyWithdrawals(), refetchInterval: 30_000 });
+const methodLabel: Record<string, string> = { bank: "تحويل بنكي", instapay: "إنستاباي", wallet: "محفظة إلكترونية" };
+const wStatus: Record<string, { l: string; c: string }> = { pending: { l: "قيد المراجعة", c: "bg-muted text-foreground" }, paid: { l: "تم الدفع", c: "bg-secondary text-secondary-foreground" }, rejected: { l: "مرفوض", c: "bg-destructive text-destructive-foreground" } };
 const statusLabel: Record<string, string> = { pending: "بانتظار الشحن", shipped: "تم الشحن", delivered: "تم التوصيل", cancelled: "ملغي" };
 const input = "mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm";
 
@@ -104,7 +107,7 @@ function ApplyForm() {
 }
 
 type Merchant = NonNullable<Awaited<ReturnType<typeof getMyMerchant>>>;
-const tabs = [{ v: "summary", l: "ملخص المبيعات" }, { v: "orders", l: "الطلبات" }, { v: "products", l: "المنتجات" }, { v: "coupons", l: "أكواد الخصم" }, { v: "store", l: "بيانات المتجر" }] as const;
+const tabs = [{ v: "summary", l: "ملخص المبيعات" }, { v: "orders", l: "الطلبات" }, { v: "products", l: "المنتجات" }, { v: "coupons", l: "أكواد الخصم" }, { v: "withdraw", l: "سحب الأرباح" }, { v: "store", l: "بيانات المتجر" }] as const;
 
 function Dashboard({ merchant }: { merchant: Merchant }) {
   const [tab, setTab] = useState<(typeof tabs)[number]["v"]>("summary");
@@ -115,11 +118,13 @@ function Dashboard({ merchant }: { merchant: Merchant }) {
   const fresh = countNew(lines, seenAt);
   useEffect(() => { if (tab === "orders" && fresh > 0) markSellerOrdersSeen(); }, [tab, fresh]);
   const toShip = lines.filter((l) => l.status === "pending").length;
+  const pendingW = (useQuery(withdrawalsQuery).data ?? []).filter((w) => w.status === "pending").length;
   const counts: Record<string, { n: number; alert?: boolean } | undefined> = {
     summary: { n: new Set(lines.filter((l) => l.status !== "cancelled").map((l) => l.order_id)).size },
     orders: { n: fresh || toShip, alert: fresh > 0 || toShip > 0 },
     products: { n: products.length },
     coupons: { n: coupons.filter((c) => c.active).length },
+    withdraw: pendingW ? { n: pendingW } : undefined,
   };
   return (
     <>
@@ -136,6 +141,7 @@ function Dashboard({ merchant }: { merchant: Merchant }) {
       {tab === "orders" && <Orders />}
       {tab === "products" && <Products />}
       {tab === "coupons" && <CouponManager scope="seller" />}
+      {tab === "withdraw" && <Withdrawals />}
       {tab === "store" && <StoreSettings merchant={merchant} />}
     </>
   );
@@ -193,6 +199,78 @@ function Earnings({ lines }: { lines: { price: number; qty: number; status: stri
         <ul className="mt-3 divide-y text-sm">{payouts.map((p) => <li key={p.id} className="flex justify-between py-2"><span>{new Date(p.created_at).toLocaleDateString("ar-EG", { dateStyle: "medium" })}{p.note ? ` · ${p.note}` : ""}</span><span className="font-bold">{fmt(Number(p.amount))} ج.م</span></li>)}</ul>
       )}
     </section>
+  );
+}
+
+function Withdrawals() {
+  const qc = useQueryClient();
+  const { data: lines } = useQuery(linesQuery);
+  const { data: payouts } = useQuery(payoutsQuery);
+  const { data: requests } = useQuery(withdrawalsQuery);
+  const { data: settings } = useQuery(deliveryQuery);
+  const submit = useServerFn(requestWithdrawal);
+  const [amount, setAmount] = useState("");
+  const [method, setMethod] = useState<"bank" | "instapay" | "wallet">("instapay");
+  const [details, setDetails] = useState("");
+  const [busy, setBusy] = useState(false);
+  if (!lines || !payouts || !requests) return <p className="rounded-lg bg-card py-12 text-center">جارٍ التحميل...</p>;
+  const e = sellerEarnings(lines, payouts, settings?.payoutHoldDays ?? 7);
+  const can = withdrawable(e.balance, requests);
+  const pending = Math.round((e.balance - can) * 100) / 100;
+  async function onSubmit(ev: FormEvent) {
+    ev.preventDefault();
+    const n = Number(amount);
+    if (!(n >= WITHDRAW_MIN)) { toast.error(`أقل مبلغ للسحب ${fmt(WITHDRAW_MIN)} ج.م`); return; }
+    if (n > can) { toast.error("المبلغ أكبر من رصيدك القابل للسحب"); return; }
+    if (details.trim().length < 3) { toast.error("أدخل بيانات استلام الدفعة"); return; }
+    setBusy(true);
+    try {
+      await submit({ data: { amount: n, method, details } });
+      setAmount(""); setDetails("");
+      await qc.invalidateQueries({ queryKey: withdrawalsQuery.queryKey });
+      toast.success("تم إرسال طلب السحب، ستراجعه إدارة سين قريبًا");
+    } catch (err) { toast.error((err as Error).message); } finally { setBusy(false); }
+  }
+  const placeholder = method === "bank" ? "اسم البنك، اسم صاحب الحساب، رقم الحساب / IBAN" : method === "instapay" ? "عنوان إنستاباي أو رقم الموبايل" : "رقم المحفظة (فودافون كاش، اتصالات كاش...)";
+  return (
+    <>
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        {[{ l: "رصيدك المستحق", v: e.balance }, { l: "طلبات قيد المراجعة", v: pending }, { l: "متاح للسحب الآن", v: can, strong: true }, { l: "قيد الانتظار (لم يصبح مستحقًا)", v: e.held }].map((c) => (
+          <div key={c.l} className={`rounded-lg p-4 ${c.strong ? "bg-secondary text-secondary-foreground" : "bg-card"}`}><div className="text-xs opacity-80">{c.l}</div><div className="mt-1 text-xl font-black">{fmt(c.v)} ج.م</div></div>
+        ))}
+      </div>
+      <form onSubmit={onSubmit} className="space-y-3 rounded-lg bg-card p-4">
+        <h2 className="font-black">طلب سحب جديد</h2>
+        {can < WITHDRAW_MIN ? <p className="text-sm text-muted-foreground">يمكنك طلب السحب عندما يصل رصيدك المتاح إلى {fmt(WITHDRAW_MIN)} ج.م على الأقل.</p> : (
+          <>
+            <label className="block text-sm font-bold">المبلغ (ج.م)
+              <div className="flex gap-2"><input aria-label="مبلغ السحب" type="number" min={WITHDRAW_MIN} max={can} step="0.01" value={amount} onChange={(x) => setAmount(x.target.value)} className={input} />
+                <button type="button" onClick={() => setAmount(String(can))} className="mt-1 rounded-md bg-muted px-3 text-xs font-bold">الكل</button></div>
+            </label>
+            <div className="text-sm font-bold">طريقة الاستلام
+              <div className="mt-1 flex flex-wrap gap-2">{(["instapay", "wallet", "bank"] as const).map((m) => (
+                <button type="button" key={m} onClick={() => setMethod(m)} className={`rounded-full px-4 py-1.5 text-sm ${method === m ? "bg-primary text-primary-foreground" : "bg-muted"}`}>{methodLabel[m]}</button>
+              ))}</div>
+            </div>
+            <label className="block text-sm font-bold">بيانات الاستلام<textarea aria-label="بيانات الاستلام" rows={2} maxLength={300} placeholder={placeholder} value={details} onChange={(x) => setDetails(x.target.value)} className={input} /></label>
+            <button disabled={busy} className="w-full rounded-md bg-primary py-2.5 font-black text-primary-foreground disabled:opacity-60">{busy ? "جارٍ..." : "إرسال طلب السحب"}</button>
+          </>
+        )}
+      </form>
+      <section className="rounded-lg bg-card p-4">
+        <h2 className="mb-2 font-black">طلباتك السابقة</h2>
+        {requests.length === 0 ? <p className="text-sm text-muted-foreground">لم ترسل أي طلب سحب بعد</p> : (
+          <ul className="divide-y text-sm">{requests.map((r) => (
+            <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+              <div>
+                <div className="font-bold">{fmt(Number(r.amount))} ج.م · {methodLabel[r.method] ?? r.method}</div>
+                <div className="text-xs text-muted-foreground">{new Date(r.created_at).toLocaleDateString("ar-EG", { dateStyle: "medium" })} · {r.account_details}{r.admin_note ? ` · ملاحظة الإدارة: ${r.admin_note}` : ""}</div>
+              </div>
+              <span className={`rounded-full px-3 py-0.5 text-xs font-bold ${wStatus[r.status]?.c ?? ""}`}>{wStatus[r.status]?.l ?? r.status}{r.decided_at ? ` · ${new Date(r.decided_at).toLocaleDateString("ar-EG", { dateStyle: "medium" })}` : ""}</span>
+            </li>))}</ul>
+        )}
+      </section>
+    </>
   );
 }
 

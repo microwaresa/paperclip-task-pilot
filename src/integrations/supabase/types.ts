@@ -350,6 +350,60 @@ export type Database = {
         }
         Relationships: []
       }
+      withdrawal_requests: {
+        Row: {
+          account_details: string
+          admin_note: string
+          amount: number
+          created_at: string
+          decided_at: string | null
+          id: string
+          merchant_id: string
+          method: string
+          payout_id: string | null
+          status: string
+        }
+        Insert: {
+          account_details: string
+          admin_note?: string
+          amount: number
+          created_at?: string
+          decided_at?: string | null
+          id?: string
+          merchant_id: string
+          method: string
+          payout_id?: string | null
+          status?: string
+        }
+        Update: {
+          account_details?: string
+          admin_note?: string
+          amount?: number
+          created_at?: string
+          decided_at?: string | null
+          id?: string
+          merchant_id?: string
+          method?: string
+          payout_id?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "withdrawal_requests_merchant_id_fkey"
+            columns: ["merchant_id"]
+            isOneToOne: false
+            referencedRelation: "merchants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "withdrawal_requests_payout_id_fkey"
+            columns: ["payout_id"]
+            isOneToOne: false
+            referencedRelation: "merchant_payouts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -362,6 +416,10 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      merchant_available_balance: {
+        Args: { _merchant_id: string }
+        Returns: number
       }
       merchant_in_order: { Args: { _order_id: string }; Returns: boolean }
       merchant_is_approved: { Args: { _merchant_id: string }; Returns: boolean }

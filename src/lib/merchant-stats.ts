@@ -42,3 +42,10 @@ export function sellerEarnings(lines: EarningLine[], payouts: { amount: number |
   const paid = r2(payouts.reduce((s, p) => s + Number(p.amount), 0));
   return { gross, commission: r2(gross - totalNet), net: totalNet, held: r2(totalNet - available), available, paid, balance: r2(available - paid) };
 }
+
+export const WITHDRAW_MIN = 50;
+/** Amount a seller can still request: payable balance minus requests waiting for admin. */
+export function withdrawable(balance: number, requests: { amount: number | string; status: string }[]) {
+  const pending = requests.filter((r) => r.status === "pending").reduce((s, r) => s + Number(r.amount), 0);
+  return Math.max(0, Math.round((balance - pending) * 100) / 100);
+}

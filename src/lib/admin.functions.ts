@@ -126,3 +126,33 @@ export const adminDeletePayout = createServerFn({ method: "POST" })
     if (error) throw new Error("تعذر حذف الدفعة");
     return { ok: true };
   });
+
+export const adminListWithdrawals = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context);
+    const { data, error } = await context.supabase.from("withdrawal_requests").select("id, amount, method, account_details, status, admin_note, created_at, decided_at, merchants(store_name)").order("created_at", { ascending: false }).limit(100);
+    if (error) throw new Error("تعذر تحميل طلبات السحب");
+    return data;
+  });
+
+export const adminDecideWithdrawal = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: { id: string; decision: "paid" | "rejected"; note: string }) => z.object({ id: z.string().uuid(), decision: z.enum(["paid", "rejected"]), note: z.string().trim().max(200) }).parse(i))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const { data: req } = await context.supabase.from("withdrawal_requests").select("id, merchant_id, amount, method, status").eq("id", data.id).maybeSingle();
+    if (!req || req.status !== "pending") throw new Error("تم البت في هذا الطلب بالفعل");
+    let payoutId: string | null = null;
+    if (data.decision === "paid") {
+      const { data: p, error } = await context.supabase.from("merchant_payouts").insert({ merchant_id: req.merchant_id, amount: req.amount, note: data.note || "طلب سحب" }).select("id").single();
+      if (error || !p) throw new Error("تعذر تسجيل الدفعة");
+      payoutId = p.id;
+    }
+    const { error } = await context.supabase.from("withdrawal_requests").update({ status: data.decision, admin_note: data.note, payout_id: payoutId }).eq("id", data.id).eq("status", "pending");
+    if (error) {
+      if (payoutId) await context.supabase.from("merchant_payouts").delete().eq("id", payoutId);
+      throw new Error("تعذر تحديث الطلب");
+    }
+    return { ok: true };
+  });
