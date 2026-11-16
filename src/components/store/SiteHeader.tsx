@@ -74,9 +74,8 @@ export function SiteHeader({ initialQuery = "" }: { initialQuery?: string }) {
           {categories.map((c) => (
             <Link key={c.slug} to="/category/$slug" params={{ slug: c.slug }} className="whitespace-nowrap hover:text-accent" activeProps={{ className: "text-accent" }}>{c.name}</Link>
           ))}
-          <Link to="/search" search={{ q: "", sort: "discount" }} className="whitespace-nowrap text-destructive">العروض</Link>
+          <Link to="/offers" className="whitespace-nowrap font-bold text-destructive">العروض</Link>
           <Link to="/sell" className="whitespace-nowrap font-bold hover:text-accent">بِع على سين</Link>
-          <Link to="/offers" className="whitespace-nowrap font-black text-accent">العروض 🔥</Link>
           <Link to="/assistant" className="flex items-center gap-1 whitespace-nowrap text-accent"><Sparkles className="h-4 w-4" />مساعد التسوق</Link>
         </div>
       </nav>
