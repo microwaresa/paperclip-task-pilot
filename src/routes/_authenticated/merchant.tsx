@@ -213,6 +213,7 @@ function Withdrawals() {
   const [method, setMethod] = useState<"bank" | "instapay" | "wallet">("instapay");
   const [details, setDetails] = useState("");
   const [busy, setBusy] = useState(false);
+  const [detailsErr, setDetailsErr] = useState(false);
   if (!lines || !payouts || !requests) return <p className="rounded-lg bg-card py-12 text-center">جارٍ التحميل...</p>;
   const e = sellerEarnings(lines, payouts, settings?.payoutHoldDays ?? 7);
   const can = withdrawable(e.balance, requests);
@@ -222,7 +223,12 @@ function Withdrawals() {
     const n = Number(amount);
     if (!(n >= WITHDRAW_MIN)) { toast.error(`أقل مبلغ للسحب ${fmt(WITHDRAW_MIN)} ج.م`); return; }
     if (n > can) { toast.error("المبلغ أكبر من رصيدك القابل للسحب"); return; }
-    if (details.trim().length < 3) { toast.error("أدخل بيانات استلام الدفعة"); return; }
+    if (details.trim().length < 3) {
+      setDetailsErr(true);
+      document.getElementById("withdraw-details")?.focus();
+      toast.error("اكتب بيانات استلام الدفعة في الخانة المظلّلة");
+      return;
+    }
     setBusy(true);
     try {
       await submit({ data: { amount: n, method, details } });
@@ -252,7 +258,12 @@ function Withdrawals() {
                 <button type="button" key={m} onClick={() => setMethod(m)} className={`rounded-full px-4 py-1.5 text-sm ${method === m ? "bg-primary text-primary-foreground" : "bg-muted"}`}>{methodLabel[m]}</button>
               ))}</div>
             </div>
-            <label className="block text-sm font-bold">بيانات الاستلام<textarea aria-label="بيانات الاستلام" rows={2} maxLength={300} placeholder={placeholder} value={details} onChange={(x) => setDetails(x.target.value)} className={input} /></label>
+            <label className="block text-sm font-bold">بيانات الاستلام ({methodLabel[method]}) <span className="text-destructive">*</span>
+              <textarea id="withdraw-details" aria-label="بيانات الاستلام" aria-invalid={detailsErr} rows={2} maxLength={300} placeholder={placeholder} value={details}
+                onChange={(x) => { setDetails(x.target.value); if (x.target.value.trim().length >= 3) setDetailsErr(false); }}
+                className={`${input} ${detailsErr ? "border-destructive ring-2 ring-destructive" : ""}`} />
+              <span className={`mt-1 block text-xs font-normal ${detailsErr ? "text-destructive" : "text-muted-foreground"}`}>{detailsErr ? "هذه الخانة مطلوبة: " : "إلى أين نرسل لك المبلغ؟ "}{placeholder}</span>
+            </label>
             <button disabled={busy} className="w-full rounded-md bg-primary py-2.5 font-black text-primary-foreground disabled:opacity-60">{busy ? "جارٍ..." : "إرسال طلب السحب"}</button>
           </>
         )}
