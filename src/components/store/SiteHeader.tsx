@@ -7,6 +7,7 @@ import { Heart, LayoutDashboard, LogOut, MapPin, Package, Search, ShoppingCart, 
 import { categories, fmt } from "@/lib/catalog";
 import { useCart } from "@/lib/cart";
 import { useAuth } from "@/hooks/use-auth";
+import { SellerBell } from "@/lib/seller-alerts";
 import { supabase } from "@/integrations/supabase/client";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
@@ -51,6 +52,7 @@ export function SiteHeader({ initialQuery = "" }: { initialQuery?: string }) {
           />
           <button type="submit" aria-label="بحث"><Search className="h-4 w-4 text-muted-foreground" /></button>
         </form>
+        <SellerBell />
         {user ? (
           <DropdownMenu dir="rtl">
             <DropdownMenuTrigger className="hidden items-center gap-1 text-sm font-semibold sm:flex"><User className="h-5 w-5" />حسابي</DropdownMenuTrigger>

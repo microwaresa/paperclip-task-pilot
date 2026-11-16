@@ -14,6 +14,9 @@ import { NO_IMAGE } from "@/lib/market";
 import { deliveryQuery } from "@/lib/settings.functions";
 import { StoreLayout } from "@/components/store/StoreLayout";
 import { CouponManager } from "@/components/store/CouponManager";
+import { listCoupons } from "@/lib/coupons.functions";
+import { countNew, markSellerOrdersSeen, useSeenAt } from "@/lib/seller-alerts";
+import { useEffect } from "react";
 
 const merchantQuery = queryOptions({ queryKey: ["my-merchant"], queryFn: () => getMyMerchant() });
 const productsQuery = queryOptions({ queryKey: ["my-products"], queryFn: () => listMyProducts() });
@@ -105,6 +108,19 @@ const tabs = [{ v: "summary", l: "ملخص المبيعات" }, { v: "orders", l
 
 function Dashboard({ merchant }: { merchant: Merchant }) {
   const [tab, setTab] = useState<(typeof tabs)[number]["v"]>("summary");
+  const lines = useQuery(linesQuery).data ?? [];
+  const products = useQuery(productsQuery).data ?? [];
+  const coupons = useQuery({ queryKey: ["coupons", "seller"], queryFn: () => listCoupons({ data: { scope: "seller" } }) }).data ?? [];
+  const seenAt = useSeenAt();
+  const fresh = countNew(lines, seenAt);
+  useEffect(() => { if (tab === "orders" && fresh > 0) markSellerOrdersSeen(); }, [tab, fresh]);
+  const toShip = lines.filter((l) => l.status === "pending").length;
+  const counts: Record<string, { n: number; alert?: boolean } | undefined> = {
+    summary: { n: new Set(lines.filter((l) => l.status !== "cancelled").map((l) => l.order_id)).size },
+    orders: { n: fresh || toShip, alert: fresh > 0 || toShip > 0 },
+    products: { n: products.length },
+    coupons: { n: coupons.filter((c) => c.active).length },
+  };
   return (
     <>
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -112,7 +128,9 @@ function Dashboard({ merchant }: { merchant: Merchant }) {
         <Link to="/store/$slug" params={{ slug: merchant.slug }} className="flex items-center gap-1 text-sm font-bold text-accent"><ExternalLink className="h-4 w-4" />صفحة متجري</Link>
       </div>
       <div className="flex flex-wrap gap-2">
-        {tabs.map((t) => <button key={t.v} onClick={() => setTab(t.v)} className={`rounded-full px-4 py-1.5 text-sm font-bold ${tab === t.v ? "bg-primary text-primary-foreground" : "bg-card"}`}>{t.l}</button>)}
+        {tabs.map((t) => <button key={t.v} onClick={() => setTab(t.v)} className={`flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-bold ${tab === t.v ? "bg-primary text-primary-foreground" : "bg-card"}`}>{t.l}
+          {counts[t.v] && <span title={t.v === "orders" ? (fresh ? "طلبات جديدة" : "بانتظار الشحن") : undefined} className={`min-w-5 rounded-full px-1.5 text-center text-xs leading-5 ${counts[t.v]!.alert ? "bg-destructive text-destructive-foreground" : "bg-muted text-muted-foreground"}`}>{fmt(counts[t.v]!.n)}</span>}
+        </button>)}
       </div>
       {tab === "summary" && <Summary />}
       {tab === "orders" && <Orders />}
