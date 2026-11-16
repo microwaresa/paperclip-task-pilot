@@ -1,6 +1,7 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { SaleCountdown } from "@/components/store/SaleCountdown";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { recordView } from "@/lib/recently-viewed";
 import { Check, Heart, Minus, Plus, ShieldCheck, Star, Truck } from "lucide-react";
 import { toast } from "sonner";
 import { discountPercent, fmt, getCategory, getProduct, isSellerProductId, productsInCategory } from "@/lib/catalog";
@@ -49,6 +50,7 @@ function ProductPage() {
   const { product: p, category } = Route.useLoaderData();
   const { add, favorites, toggleFavorite } = useCart();
   const [qty, setQty] = useState(1);
+  useEffect(() => { recordView(p); }, [p]);
   const liked = favorites.includes(p.id);
   const maxQty = Math.min(MAX_QTY, p.stock ?? MAX_QTY);
   const soldOut = p.stock === 0;

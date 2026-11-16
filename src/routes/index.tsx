@@ -3,7 +3,10 @@ import { ChevronLeft, Dumbbell, Gamepad2, Headphones, Home, Laptop, Shirt, Smart
 import hero from "@/assets/hero.jpg";
 import { categories, discountPercent, products } from "@/lib/catalog";
 import { StoreLayout } from "@/components/store/StoreLayout";
-import { ProductGrid } from "@/components/store/ProductCard";
+import { HeroCarousel, ProductCarousel, type Slide } from "@/components/store/Carousels";
+import { clearViewed, suggest, useRecentlyViewed } from "@/lib/recently-viewed";
+import slideElectronics from "@/assets/slide-electronics.jpg";
+import slideHome from "@/assets/slide-home.jpg";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -22,21 +25,19 @@ export const Route = createFileRoute("/")({
 const icons: Record<string, LucideIcon> = {
   mobiles: Smartphone, laptops: Laptop, audio: Headphones, watches: Watch, fashion: Shirt, sports: Dumbbell, home: Home, gaming: Gamepad2,
 };
-const deals = [...products].sort((a, b) => discountPercent(b) - discountPercent(a)).slice(0, 5);
-const best = [...products].sort((a, b) => b.reviews - a.reviews).slice(0, 5);
+const deals = [...products].sort((a, b) => discountPercent(b) - discountPercent(a)).slice(0, 10);
+const best = [...products].sort((a, b) => b.reviews - a.reviews).slice(0, 10);
+const shopNow = (sort: "discount" | "popular", q = "") => <Link to="/search" search={{ q, sort }} className="w-fit rounded-md bg-primary px-5 py-2 font-bold text-primary-foreground">تسوق الآن</Link>;
+const slides: Slide[] = [
+  { img: hero, badge: "الجمعة البيضاء", title: "خصومات تصل إلى ٤٠٪", text: "على الموبايلات والإلكترونيات والموضة", cta: shopNow("discount") },
+  { img: slideElectronics, badge: "جديد الإلكترونيات", title: "أحدث الأجهزة بأفضل سعر", text: "موبايلات وسماعات وساعات ذكية مع توصيل سريع", cta: shopNow("popular") },
+  { img: slideHome, badge: "بيتك أحلى", title: "مستلزمات المنزل والمطبخ", text: "اختيارات مميزة من بائعي سين", cta: <Link to="/category/$slug" params={{ slug: "home" }} className="w-fit rounded-md bg-primary px-5 py-2 font-bold text-primary-foreground">تسوق الآن</Link> },
+];
 
 function Index() {
   return (
     <StoreLayout>
-      <section className="relative overflow-hidden rounded-lg">
-        <img src={hero} alt="عروض سين" width={1600} height={640} className="h-56 w-full object-cover md:h-80" />
-        <div className="absolute inset-y-0 right-0 flex flex-col justify-center gap-3 bg-gradient-to-l from-secondary/85 to-transparent p-8 text-secondary-foreground md:w-1/2">
-          <span className="w-fit rounded bg-primary px-2 py-0.5 text-xs font-bold text-primary-foreground">الجمعة البيضاء</span>
-          <h1 className="text-3xl font-black md:text-5xl">خصومات تصل إلى ٤٠٪</h1>
-          <p className="text-sm md:text-base">على الموبايلات والإلكترونيات والموضة</p>
-          <Link to="/search" search={{ q: "", sort: "discount" }} className="w-fit rounded-md bg-primary px-5 py-2 font-bold text-primary-foreground">تسوق الآن</Link>
-        </div>
-      </section>
+      <HeroCarousel slides={slides} />
 
       <section className="grid grid-cols-4 gap-3 rounded-lg bg-card p-4 md:grid-cols-8">
         {categories.map((c) => {
@@ -55,20 +56,26 @@ function Index() {
         ))}
       </div>
 
-      <Row title="عروض اليوم" sort="discount" items={deals} />
-      <Row title="الأكثر مبيعًا" sort="popular" items={best} />
+      <ForYou />
+      <ProductCarousel title="عروض اليوم" items={deals} action={<ViewAll sort="discount" />} />
+      <ProductCarousel title="الأكثر مبيعًا" items={best} action={<ViewAll sort="popular" />} />
+      <RecentlyViewed />
     </StoreLayout>
   );
 }
 
-function Row({ title, items, sort }: { title: string; items: typeof products; sort: "discount" | "popular" }) {
-  return (
-    <section className="rounded-lg bg-card p-4">
-      <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-xl font-black">{title}</h2>
-        <Link to="/search" search={{ q: "", sort }} className="flex items-center text-sm font-bold text-accent">عرض الكل<ChevronLeft className="h-4 w-4" /></Link>
-      </div>
-      <ProductGrid items={items} />
-    </section>
-  );
+function ViewAll({ sort }: { sort: "discount" | "popular" }) {
+  return <Link to="/search" search={{ q: "", sort }} className="flex items-center text-sm font-bold text-accent">عرض الكل<ChevronLeft className="h-4 w-4" /></Link>;
+}
+
+/** "You may like" — based on what this shopper opened before (stored in their browser). */
+function ForYou() {
+  const viewed = useRecentlyViewed();
+  const picks = suggest(viewed, products);
+  return <ProductCarousel title="قد يعجبك أيضًا" items={picks} action={<span className="text-xs text-muted-foreground">بناءً على ما شاهدته</span>} />;
+}
+
+function RecentlyViewed() {
+  const viewed = useRecentlyViewed();
+  return <ProductCarousel title="شاهدتها مؤخرًا" items={viewed} action={<button onClick={clearViewed} className="text-sm font-bold text-accent">مسح السجل</button>} />;
 }
