@@ -60,7 +60,7 @@ function ProductPage() {
         <span className="text-foreground">{p.name}</span>
       </nav>
       <section className="grid gap-6 rounded-lg bg-card p-4 md:grid-cols-[1fr_1.2fr_0.8fr]">
-        <img src={p.img} alt={p.name} width={816} height={816} className="aspect-square w-full rounded-lg bg-muted object-contain" />
+        <Gallery key={p.id} images={p.images?.length ? p.images : [p.img]} alt={p.name} />
         <div className="space-y-3">
           <div className="text-sm font-bold text-accent">{p.brand}</div>
           {p.seller && <Link to="/store/$slug" params={{ slug: p.seller.slug }} className="flex w-fit items-center gap-1 text-sm font-bold hover:text-accent"><Store className="h-4 w-4" />يبيعه: {p.seller.name}</Link>}
@@ -101,5 +101,23 @@ function ProductPage() {
         </section>
       )}
     </StoreLayout>
+  );
+}
+
+function Gallery({ images, alt }: { images: string[]; alt: string }) {
+  const [i, setI] = useState(0);
+  return (
+    <div>
+      <img src={images[i] ?? images[0]} alt={alt} width={816} height={816} className="aspect-square w-full rounded-lg bg-muted object-contain" />
+      {images.length > 1 && (
+        <div className="mt-2 flex flex-wrap gap-2">
+          {images.map((src, j) => (
+            <button key={src} type="button" aria-label={`صورة ${j + 1}`} onClick={() => setI(j)} className={`h-16 w-16 overflow-hidden rounded border-2 ${j === i ? "border-primary" : "border-transparent"}`}>
+              <img src={src} alt="" className="h-full w-full bg-muted object-contain" />
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

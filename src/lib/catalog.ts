@@ -13,6 +13,8 @@ export type Product = {
   brand: string;
   category: string;
   img: string;
+  /** Extra gallery photos (seller products); first equals img. */
+  images?: string[];
   price: number;
   oldPrice: number;
   rating: number;

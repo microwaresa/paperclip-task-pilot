@@ -60,7 +60,7 @@ const productInput = z.object({
   price: z.number().int().min(1).max(1_000_000),
   oldPrice: z.number().int().max(1_000_000).nullable(),
   description: z.string().trim().max(2000),
-  imageUrl: z.string().url().max(2000).nullable(),
+  imageUrls: z.array(z.string().url().max(2000)).max(8),
   stock: z.number().int().min(0).max(100_000),
   active: z.boolean(),
 }).refine((p) => p.oldPrice === null || p.oldPrice >= p.price, { message: "السعر قبل الخصم يجب أن يكون أكبر من السعر الحالي" });
@@ -70,7 +70,7 @@ export const saveProduct = createServerFn({ method: "POST" })
   .inputValidator((i: z.input<typeof productInput>) => productInput.parse(i))
   .handler(async ({ data, context }) => {
     const m = await myMerchantId(context);
-    const row = { merchant_id: m.id, name: data.name, brand: data.brand, category: data.category, price: data.price, old_price: data.oldPrice, description: data.description, image_url: data.imageUrl, stock: data.stock, active: data.active };
+    const row = { merchant_id: m.id, name: data.name, brand: data.brand, category: data.category, price: data.price, old_price: data.oldPrice, description: data.description, image_url: data.imageUrls[0] ?? null, image_urls: data.imageUrls, stock: data.stock, active: data.active };
     const { error } = data.id
       ? await context.supabase.from("merchant_products").update(row).eq("id", data.id).eq("merchant_id", m.id)
       : await context.supabase.from("merchant_products").insert(row);

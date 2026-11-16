@@ -192,9 +192,9 @@ function Orders() {
 }
 
 type Row = Awaited<ReturnType<typeof listMyProducts>>[number];
-type Draft = { id?: string; name: string; brand: string; category: string; price: string; oldPrice: string; description: string; imageUrl: string | null; stock: string; active: boolean };
-const emptyDraft: Draft = { name: "", brand: "", category: categories[0]!.slug, price: "", oldPrice: "", description: "", imageUrl: null, stock: "1", active: true };
-const toDraft = (r: Row): Draft => ({ id: r.id, name: r.name, brand: r.brand, category: r.category, price: String(r.price), oldPrice: r.old_price ? String(r.old_price) : "", description: r.description, imageUrl: r.image_url, stock: String(r.stock), active: r.active });
+type Draft = { id?: string; name: string; brand: string; category: string; price: string; oldPrice: string; description: string; imageUrls: string[]; stock: string; active: boolean };
+const emptyDraft: Draft = { name: "", brand: "", category: categories[0]!.slug, price: "", oldPrice: "", description: "", imageUrls: [], stock: "1", active: true };
+const toDraft = (r: Row): Draft => ({ id: r.id, name: r.name, brand: r.brand, category: r.category, price: String(r.price), oldPrice: r.old_price ? String(r.old_price) : "", description: r.description, imageUrls: r.image_urls?.length ? r.image_urls : r.image_url ? [r.image_url] : [], stock: String(r.stock), active: r.active });
 
 function Products() {
   const qc = useQueryClient();
@@ -217,7 +217,7 @@ function Products() {
         <ul className="divide-y">
           {data.map((p) => (
             <li key={p.id} className="flex items-center gap-3 py-2 text-sm">
-              <img src={p.image_url || NO_IMAGE} alt="" className="h-14 w-14 rounded bg-muted object-contain" />
+              <img src={p.image_urls?.[0] || p.image_url || NO_IMAGE} alt="" className="h-14 w-14 rounded bg-muted object-contain" />
               <div className="min-w-0 flex-1">
                 <div className="line-clamp-1 font-bold">{p.name}</div>
                 <div className="text-xs text-muted-foreground">{fmt(p.price)} ج.م · المخزون {fmt(p.stock)} {!p.active && "· مخفي"}{p.stock === 0 && " · نفدت الكمية"}</div>
@@ -232,6 +232,8 @@ function Products() {
   );
 }
 
+const MAX_PHOTOS = 8;
+
 function ProductForm({ draft, onDone }: { draft: Draft; onDone: (saved: boolean) => void }) {
   const save = useServerFn(saveProduct);
   const [d, setD] = useState(draft);
@@ -239,18 +241,24 @@ function ProductForm({ draft, onDone }: { draft: Draft; onDone: (saved: boolean)
   const [uploading, setUploading] = useState(false);
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setD((x) => ({ ...x, [k]: v }));
 
-  async function upload(file: File) {
-    if (!file.type.startsWith("image/")) { toast.error("اختر صورة"); return; }
-    if (file.size > 5 * 1024 * 1024) { toast.error("أقصى حجم للصورة ٥ ميجا"); return; }
+  async function upload(files: File[]) {
+    const room = MAX_PHOTOS - d.imageUrls.length;
+    if (room <= 0) { toast.error(`أقصى عدد ${MAX_PHOTOS} صور`); return; }
+    if (files.length > room) toast.error(`سيتم رفع أول ${room} صور فقط`);
     setUploading(true);
     try {
       const { data: u } = await supabase.auth.getUser();
+      for (const file of files.slice(0, room)) {
+        if (!file.type.startsWith("image/")) { toast.error(`${file.name}: ليست صورة`); continue; }
+        if (file.size > 5 * 1024 * 1024) { toast.error(`${file.name}: أقصى حجم ٥ ميجا`); continue; }
       const path = `${u.user!.id}/${crypto.randomUUID()}.${file.name.split(".").pop() || "jpg"}`;
       const { error } = await supabase.storage.from("product-images").upload(path, file, { contentType: file.type });
       if (error) throw error;
       const { data: signed, error: sErr } = await supabase.storage.from("product-images").createSignedUrl(path, 60 * 60 * 24 * 365 * 10);
       if (sErr || !signed) throw sErr;
-      set("imageUrl", signed.signedUrl);
+        const url = signed.signedUrl;
+        setD((x) => ({ ...x, imageUrls: [...x.imageUrls, url] }));
+      }
     } catch { toast.error("تعذر رفع الصورة"); } finally { setUploading(false); }
   }
 
@@ -262,7 +270,7 @@ function ProductForm({ draft, onDone }: { draft: Draft; onDone: (saved: boolean)
     if (!Number.isInteger(stock) || stock < 0) { toast.error("أدخل كمية صحيحة"); return; }
     setBusy(true);
     try {
-      await save({ data: { ...(d.id ? { id: d.id } : {}), name: d.name, brand: d.brand, category: d.category, price, oldPrice, description: d.description, imageUrl: d.imageUrl, stock, active: d.active } });
+      await save({ data: { ...(d.id ? { id: d.id } : {}), name: d.name, brand: d.brand, category: d.category, price, oldPrice, description: d.description, imageUrls: d.imageUrls, stock, active: d.active } });
       toast.success("تم حفظ المنتج");
       onDone(true);
     } catch (err) { toast.error((err as Error).message); } finally { setBusy(false); }
@@ -281,11 +289,23 @@ function ProductForm({ draft, onDone }: { draft: Draft; onDone: (saved: boolean)
       <label className="block text-sm font-bold">الكمية المتاحة<input required type="number" min={0} value={d.stock} onChange={(e) => set("stock", e.target.value)} className={input} /></label>
       <label className="flex items-center gap-2 self-end pb-2 text-sm font-bold"><input type="checkbox" checked={d.active} onChange={(e) => set("active", e.target.checked)} />معروض للمتسوقين</label>
       <label className="block text-sm font-bold md:col-span-2">الوصف<textarea maxLength={2000} rows={4} value={d.description} onChange={(e) => set("description", e.target.value)} className={input} /></label>
-      <div className="flex items-center gap-3 md:col-span-2">
-        <img src={d.imageUrl || NO_IMAGE} alt="" className="h-20 w-20 rounded bg-muted object-contain" />
-        <label className="cursor-pointer rounded-md border px-3 py-2 text-sm font-bold">{uploading ? "جارٍ الرفع..." : "رفع صورة"}
-          <input type="file" accept="image/*" className="hidden" disabled={uploading} onChange={(e) => { const f = e.target.files?.[0]; if (f) upload(f); }} />
-        </label>
+      <div className="md:col-span-2">
+        <div className="mb-1 text-sm font-bold">صور المنتج ({d.imageUrls.length}/{MAX_PHOTOS}) <span className="font-normal text-muted-foreground">— الأولى هي الصورة الرئيسية</span></div>
+        <div className="flex flex-wrap items-center gap-2">
+          {d.imageUrls.map((url, i) => (
+            <div key={url} className="relative">
+              <img src={url} alt={`صورة ${i + 1}`} className={`h-20 w-20 rounded bg-muted object-contain ${i === 0 ? "ring-2 ring-primary" : ""}`} />
+              <button type="button" aria-label="حذف الصورة" onClick={() => setD((x) => ({ ...x, imageUrls: x.imageUrls.filter((_, j) => j !== i) }))} className="absolute -top-2 -left-2 rounded-full bg-destructive px-1.5 text-xs font-bold text-destructive-foreground">×</button>
+              {i > 0 && <button type="button" onClick={() => setD((x) => ({ ...x, imageUrls: [url, ...x.imageUrls.filter((_, j) => j !== i)] }))} className="absolute bottom-0 inset-x-0 bg-foreground/70 text-[10px] text-background">اجعلها الرئيسية</button>}
+            </div>
+          ))}
+          {d.imageUrls.length === 0 && <img src={NO_IMAGE} alt="" className="h-20 w-20 rounded bg-muted object-contain" />}
+          {d.imageUrls.length < MAX_PHOTOS && (
+            <label className="cursor-pointer rounded-md border px-3 py-2 text-sm font-bold">{uploading ? "جارٍ الرفع..." : "رفع صور"}
+              <input type="file" accept="image/*" multiple className="hidden" disabled={uploading} onChange={(e) => { const fs = Array.from(e.target.files ?? []); e.target.value = ""; if (fs.length) upload(fs); }} />
+            </label>
+          )}
+        </div>
       </div>
       <div className="flex gap-2 md:col-span-2">
         <button disabled={busy || uploading} className="rounded-md bg-primary px-5 py-2 font-black text-primary-foreground disabled:opacity-60">{busy ? "جارٍ الحفظ..." : "حفظ"}</button>

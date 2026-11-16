@@ -23,6 +23,7 @@ export type Database = {
           description: string
           id: string
           image_url: string | null
+          image_urls: string[]
           merchant_id: string
           name: string
           old_price: number | null
@@ -37,6 +38,7 @@ export type Database = {
           description?: string
           id?: string
           image_url?: string | null
+          image_urls?: string[]
           merchant_id: string
           name: string
           old_price?: number | null
@@ -51,6 +53,7 @@ export type Database = {
           description?: string
           id?: string
           image_url?: string | null
+          image_urls?: string[]
           merchant_id?: string
           name?: string
           old_price?: number | null
