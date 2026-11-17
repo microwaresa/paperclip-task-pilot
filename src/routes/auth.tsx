@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
 import { useAuth } from "@/hooks/use-auth";
 import { signUpErrorMessage } from "@/lib/auth-errors";
+import { isNativeShell } from "@/lib/native-shell";
 
 export const Route = createFileRoute("/auth")({
   validateSearch: zodValidator(z.object({ redirect: z.string().optional() })),
@@ -44,6 +45,9 @@ function AuthPage() {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);
+  // Google/Lovable sign-in leaves the Android app for the browser, so the app offers email only.
+  const [inApp, setInApp] = useState(false);
+  useEffect(() => setInApp(isNativeShell()), []);
 
   useEffect(() => {
     if (ready && user) {
@@ -86,11 +90,17 @@ function AuthPage() {
         ) : (
           <>
             <h1 className="text-xl font-black">{mode === "in" ? "تسجيل الدخول" : "إنشاء حساب جديد"}</h1>
+            {inApp ? (
+              <p className="text-center text-xs text-muted-foreground">سجّل الدخول ببريدك الإلكتروني داخل التطبيق.</p>
+            ) : (
+              <>
             <button type="button" onClick={() => social("google")} className="flex h-10 w-full items-center justify-center gap-2.5 rounded-md border border-[#747775] bg-[#FFFFFF] px-3 text-sm font-medium text-[#1F1F1F]">
               <GoogleLogo /><span>المتابعة باستخدام Google</span>
             </button>
             <button type="button" onClick={() => social("lovable")} className="lovable-auth-button w-full">المتابعة باستخدام Lovable</button>
             <div className="flex items-center gap-2 text-xs text-muted-foreground"><span className="h-px flex-1 bg-border" />أو<span className="h-px flex-1 bg-border" /></div>
+              </>
+            )}
             <form onSubmit={submit} className="space-y-3">
               <label className="block text-sm font-semibold">البريد الإلكتروني
                 <input type="email" required dir="ltr" value={email} onChange={(e) => setEmail(e.target.value)} className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm" />
