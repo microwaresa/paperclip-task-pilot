@@ -17,3 +17,4 @@
 - [ ] Verify the seller flow end-to-end signed in (apply → approve → add product → order → ship)
 
 - [x] Separate admin orders, sellers, withdrawals, coupons, and settings into focused views (signed-in visual check blocked: session permission denied).
+- [x] Android app wrapper (Capacitor) — APK is built on the user's computer with Android Studio (see ANDROID.md)

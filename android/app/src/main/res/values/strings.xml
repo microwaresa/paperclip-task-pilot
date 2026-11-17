@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Seen</string>
+    <string name="title_activity_main">Seen</string>
+    <string name="package_name">app.seen.online</string>
+    <string name="custom_url_scheme">app.seen.online</string>
+</resources>
