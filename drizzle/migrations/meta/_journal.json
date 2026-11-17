@@ -85,6 +85,13 @@
       "when": 1794825405846,
       "tag": "0011_restrict_product_image_reads_and_settings",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1794903775263,
+      "tag": "0012_store_branding",
+      "breakpoints": true
     }
   ]
 }

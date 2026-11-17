@@ -310,6 +310,7 @@ export type Database = {
       }
       store_settings: {
         Row: {
+          brand: Json
           free_shipping_min: number
           id: number
           payout_hold_days: number
@@ -317,6 +318,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          brand?: Json
           free_shipping_min?: number
           id?: number
           payout_hold_days?: number
@@ -324,6 +326,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          brand?: Json
           free_shipping_min?: number
           id?: number
           payout_hold_days?: number

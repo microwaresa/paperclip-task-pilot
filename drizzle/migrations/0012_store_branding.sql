@@ -1,0 +1,1 @@
+ALTER TABLE public.store_settings ADD COLUMN brand jsonb NOT NULL DEFAULT '{}'::jsonb;
