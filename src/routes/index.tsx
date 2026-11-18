@@ -1,12 +1,15 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ChevronLeft, Dumbbell, Gamepad2, Headphones, Home, Laptop, Shirt, Smartphone, Truck, Watch, type LucideIcon } from "lucide-react";
 import hero from "@/assets/hero.jpg";
-import { categories, discountPercent, products } from "@/lib/catalog";
+import { categories, discountPercent, fmt, products } from "@/lib/catalog";
 import { StoreLayout } from "@/components/store/StoreLayout";
 import { HeroCarousel, ProductCarousel, type Slide } from "@/components/store/Carousels";
 import { clearViewed, suggest, useRecentlyViewed } from "@/lib/recently-viewed";
 import slideElectronics from "@/assets/slide-electronics.jpg";
 import slideHome from "@/assets/slide-home.jpg";
+import { useQuery } from "@tanstack/react-query";
+import { brandQuery, deliveryQuery } from "@/lib/settings.functions";
+import { DEFAULT_BRAND } from "@/lib/brand";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -28,16 +31,20 @@ const icons: Record<string, LucideIcon> = {
 const deals = [...products].sort((a, b) => discountPercent(b) - discountPercent(a)).slice(0, 10);
 const best = [...products].sort((a, b) => b.reviews - a.reviews).slice(0, 10);
 const shopNow = (sort: "discount" | "popular", q = "") => <Link to="/search" search={{ q, sort }} className="w-fit rounded-md bg-primary px-5 py-2 font-bold text-primary-foreground">تسوق الآن</Link>;
-const slides: Slide[] = [
-  { img: hero, badge: "الجمعة البيضاء", title: "خصومات تصل إلى ٤٠٪", text: "على الموبايلات والإلكترونيات والموضة", cta: shopNow("discount") },
-  { img: slideElectronics, badge: "جديد الإلكترونيات", title: "أحدث الأجهزة بأفضل سعر", text: "موبايلات وسماعات وساعات ذكية مع توصيل سريع", cta: shopNow("popular") },
-  { img: slideHome, badge: "بيتك أحلى", title: "مستلزمات المنزل والمطبخ", text: "اختيارات مميزة من بائعي سين", cta: <Link to="/category/$slug" params={{ slug: "home" }} className="w-fit rounded-md bg-primary px-5 py-2 font-bold text-primary-foreground">تسوق الآن</Link> },
+const slideMedia = [
+  { img: hero, cta: shopNow("discount") },
+  { img: slideElectronics, cta: shopNow("popular") },
+  { img: slideHome, cta: <Link to="/category/$slug" params={{ slug: "home" }} className="w-fit rounded-md bg-primary px-5 py-2 font-bold text-primary-foreground">تسوق الآن</Link> },
 ];
 
 function Index() {
+  const brand = useQuery(brandQuery).data ?? DEFAULT_BRAND;
+  const delivery = useQuery(deliveryQuery).data;
+  const slides: Slide[] = slideMedia.map((m, i) => ({ ...m, badge: "", title: "", text: "", ...brand.slides[i] })).filter((s) => s.title);
+  const badges = [delivery ? `توصيل مجاني للطلبات فوق ${fmt(delivery.freeShippingMin)} ج.م` : "", ...brand.badges].filter(Boolean);
   return (
     <StoreLayout>
-      <HeroCarousel slides={slides} />
+      {slides.length > 0 && <HeroCarousel slides={slides} />}
 
       <section className="grid grid-cols-4 gap-3 rounded-lg bg-card p-4 md:grid-cols-8">
         {categories.map((c) => {
@@ -51,7 +58,7 @@ function Index() {
       </section>
 
       <div className="grid gap-3 md:grid-cols-3">
-        {["توصيل مجاني للطلبات فوق ٢٠٠ ج.م", "ادفع عند الاستلام", "إرجاع مجاني خلال ١٤ يوم"].map((t) => (
+        {badges.map((t) => (
           <div key={t} className="flex items-center gap-3 rounded-lg bg-secondary p-4 text-sm font-bold text-secondary-foreground"><Truck className="h-5 w-5 text-primary" />{t}</div>
         ))}
       </div>

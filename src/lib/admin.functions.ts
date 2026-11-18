@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { OrderItem } from "./orders.functions";
+import { brandSchema, type Brand } from "./brand";
 
 export const ORDER_STATUSES = ["pending", "shipped", "delivered", "cancelled"] as const;
 
@@ -60,6 +61,16 @@ export const adminUpdateDelivery = createServerFn({ method: "POST" })
       .update({ shipping_fee: data.shippingFee, free_shipping_min: data.freeShippingMin, payout_hold_days: data.payoutHoldDays, updated_at: new Date().toISOString() })
       .eq("id", 1);
     if (error) throw new Error("تعذر حفظ الإعدادات");
+    return { ok: true };
+  });
+
+export const adminUpdateBrand = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: Brand) => brandSchema.parse(i))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const { error } = await context.supabase.from("store_settings").update({ brand: data, updated_at: new Date().toISOString() }).eq("id", 1);
+    if (error) throw new Error("تعذر حفظ الهوية");
     return { ok: true };
   });
 

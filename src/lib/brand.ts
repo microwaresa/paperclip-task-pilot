@@ -49,11 +49,12 @@ export function resolveBrand(raw: unknown): Brand {
 
 /** Relative luminance (WCAG) of a #rrggbb color. */
 export function luminance(h: string): number {
-  const c = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
-  return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)) as [number, number, number];
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
 export function contrast(a: string, b: string): number {
-  const [x, y] = [luminance(a), luminance(b)].sort((m, n) => n - m);
+  const la = luminance(a), lb = luminance(b);
+  const [x, y] = la > lb ? [la, lb] : [lb, la];
   return (x + 0.05) / (y + 0.05);
 }
 /** Text color for a fill: the dark brand color when it reads well, else white. */
@@ -61,10 +62,15 @@ export function readableOn(fill: string, dark: string): string {
   return contrast(fill, dark) >= contrast(fill, "#FFFFFF") ? dark : "#FFFFFF";
 }
 
+/** The dark color used for body text: the brand's dark color when dark enough, else near-black. */
+export function textColor(b: Brand): string {
+  return luminance(b.colors.secondary) < 0.2 ? b.colors.secondary : "#1A1A1A";
+}
+
 /** CSS variable overrides applied on top of styles.css. */
 export function brandCss(b: Brand): string {
   const { primary, secondary, accent, background } = b.colors;
-  const darkText = luminance(secondary) < 0.2 ? secondary : "#1A1A1A";
+  const darkText = textColor(b);
   const vars: Record<string, string> = {
     "--brand-yellow": primary, "--brand-forest": darkText, "--brand-rust": accent, "--brand-mint": background,
     "--primary-foreground": readableOn(primary, darkText),

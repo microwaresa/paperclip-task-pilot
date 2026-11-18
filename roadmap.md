@@ -18,3 +18,5 @@
 
 - [x] Separate admin orders, sellers, withdrawals, coupons, and settings into focused views (signed-in visual check blocked: session permission denied).
 - [x] Android app wrapper (Capacitor) — APK is built on the user's computer with Android Studio (see ANDROID.md)
+- [ ] Admin branding: store name, colors, announcement, banners, contact, social (Branding tab)
+- [ ] Admin logo image upload shown in header, footer and sign-in pages

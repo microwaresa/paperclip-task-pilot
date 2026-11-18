@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { StoreName } from "@/components/store/StoreName";
 import { BarChart3, PackagePlus, Store, Truck } from "lucide-react";
 import { StoreLayout } from "@/components/store/StoreLayout";
 
@@ -27,7 +28,7 @@ function SellPage() {
   return (
     <StoreLayout>
       <section className="rounded-lg bg-secondary p-8 text-secondary-foreground">
-        <h1 className="text-3xl font-black">بِع على سين<span className="text-primary">.</span></h1>
+        <h1 className="text-3xl font-black">بِع على <StoreName /><span className="text-primary">.</span></h1>
         <p className="mt-2 max-w-xl opacity-90">افتح متجرك واوصل لآلاف المتسوقين في كل محافظات مصر. الدفع عند الاستلام والتوصيل علينا.</p>
         <Link to="/merchant" className="mt-6 inline-block rounded-md bg-primary px-6 py-3 font-black text-primary-foreground">ابدأ البيع الآن</Link>
       </section>

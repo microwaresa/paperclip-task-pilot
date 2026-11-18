@@ -15,6 +15,9 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { AuthProvider } from "@/hooks/use-auth";
 import { CartProvider } from "@/lib/cart";
 import { Toaster } from "@/components/ui/sonner";
+import { useQuery } from "@tanstack/react-query";
+import { brandQuery } from "@/lib/settings.functions";
+import { brandCss } from "@/lib/brand";
 
 function NotFoundComponent() {
   return (
@@ -102,6 +105,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
     ],
   }),
+  loader: ({ context }) => context.queryClient.ensureQueryData(brandQuery),
   shellComponent: RootShell,
   component: RootComponent,
   notFoundComponent: NotFoundComponent,
@@ -128,6 +132,7 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+      <BrandStyle />
       <AuthProvider>
         <CartProvider>
           <Outlet />
@@ -136,4 +141,10 @@ function RootComponent() {
       </AuthProvider>
     </QueryClientProvider>
   );
+}
+
+/** Applies the admin-chosen brand colors over the default theme. */
+function BrandStyle() {
+  const { data } = useQuery(brandQuery);
+  return data ? <style>{brandCss(data)}</style> : null;
 }

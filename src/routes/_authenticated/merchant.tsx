@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useRouter, type ErrorComponentProps } from "@tanstack/react-router";
+import { StoreName } from "@/components/store/StoreName";
 import { queryOptions, useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent } from "react";
@@ -95,7 +96,7 @@ function ApplyForm() {
   }
   return (
     <form onSubmit={submit} className="mx-auto w-full max-w-lg space-y-3 rounded-lg bg-card p-6">
-      <h1 className="text-2xl font-black">افتح متجرك على سين</h1>
+      <h1 className="text-2xl font-black">افتح متجرك على <StoreName /></h1>
       <p className="text-sm text-muted-foreground">املأ البيانات وستراجع الإدارة طلبك.</p>
       <label className="block text-sm font-bold">اسم المتجر<input required minLength={2} maxLength={60} value={storeName} onChange={(e) => setStoreName(e.target.value)} className={input} /></label>
       <label className="block text-sm font-bold">رابط المتجر (بالإنجليزية)
@@ -156,7 +157,7 @@ function Dashboard({ merchant }: { merchant: Merchant }) {
   return (
     <>
       <header className="flex flex-wrap items-center justify-between gap-3 border-b pb-4">
-        <div className="min-w-0"><p className="mb-1 text-xs font-bold text-muted-foreground">سين / لوحة البائع</p><h1 className="truncate text-2xl font-black">{merchant.store_name}</h1></div>
+        <div className="min-w-0"><p className="mb-1 text-xs font-bold text-muted-foreground"><StoreName /> / لوحة البائع</p><h1 className="truncate text-2xl font-black">{merchant.store_name}</h1></div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" asChild><Link to="/store/$slug" params={{ slug: merchant.slug }}><ExternalLink />صفحة متجري</Link></Button>
           <Button variant="outline" size="icon" aria-label="تحديث البيانات" title="تحديث البيانات" disabled={refreshing} onClick={refresh}><RefreshCw className={refreshing ? "animate-spin" : ""} /></Button>

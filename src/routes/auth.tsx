@@ -5,6 +5,8 @@ import { useEffect, useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import "@lovable.dev/cloud-auth-js/styles.css";
 import { supabase } from "@/integrations/supabase/client";
+import { useQuery as useBrandQuery } from "@tanstack/react-query";
+import { brandQuery } from "@/lib/settings.functions";
 import { lovable } from "@/integrations/lovable";
 import { useAuth } from "@/hooks/use-auth";
 import { signUpErrorMessage } from "@/lib/auth-errors";
@@ -45,6 +47,7 @@ function AuthPage() {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);
+  const brandName = useBrandQuery(brandQuery).data?.storeName;
   // Google/Lovable sign-in leaves the Android app for the browser, so the app offers email only.
   const [inApp, setInApp] = useState(false);
   useEffect(() => setInApp(isNativeShell()), []);
@@ -79,7 +82,7 @@ function AuthPage() {
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4 py-10">
-      <Link to="/" className="mb-6 text-4xl font-black">سين<span className="text-accent">.</span></Link>
+      <Link to="/" className="mb-6 text-4xl font-black">{brandName}<span className="text-accent">.</span></Link>
       <div className="w-full max-w-sm space-y-4 rounded-lg bg-card p-6 shadow-sm">
         {sent ? (
           <div className="space-y-2 text-center">

@@ -1,9 +1,10 @@
 import { createFileRoute, useRouter, type ErrorComponentProps } from "@tanstack/react-router";
+import { StoreName } from "@/components/store/StoreName";
 import { queryOptions, useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState, type FormEvent } from "react";
 import { toast } from "sonner";
-import { Package, Store, Wallet, TicketPercent, Settings, Search, RefreshCw, Truck, CheckCheck } from "lucide-react";
+import { Package, Store, Wallet, TicketPercent, Settings, Palette, Search, RefreshCw, Truck, CheckCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { fmt } from "@/lib/catalog";
@@ -12,6 +13,7 @@ import { sellerEarnings } from "@/lib/merchant-stats";
 import { CouponManager } from "@/components/store/CouponManager";
 import { deliveryQuery } from "@/lib/settings.functions";
 import { StoreLayout } from "@/components/store/StoreLayout";
+import { BrandSettings } from "@/components/store/BrandSettings";
 
 const adminOrdersQuery = queryOptions({ queryKey: ["admin-orders"], queryFn: () => adminListOrders(), refetchInterval: 30_000 });
 const statusLabel: Record<string, string> = { pending: "قيد التجهيز", shipped: "تم الشحن", delivered: "تم التوصيل", cancelled: "ملغي" };
@@ -156,7 +158,8 @@ const adminSections = [
   { id: "merchants", label: "البائعون", icon: Store },
   { id: "withdrawals", label: "طلبات السحب", icon: Wallet },
   { id: "coupons", label: "أكواد الخصم", icon: TicketPercent },
-  { id: "settings", label: "الإعدادات", icon: Settings },
+  { id: "brand", label: "الهوية والمظهر", icon: Palette },
+  { id: "settings", label: "التوصيل والدفعات", icon: Settings },
 ];
 
 function AdminPage() {
@@ -178,7 +181,7 @@ function AdminPage() {
   return (
     <StoreLayout>
       <header className="flex items-center justify-between gap-3 border-b pb-4">
-        <div><p className="mb-1 text-xs font-bold text-muted-foreground">سين / الإدارة</p><h1 className="text-2xl font-black">لوحة الإدارة</h1></div>
+        <div><p className="mb-1 text-xs font-bold text-muted-foreground"><StoreName /> / الإدارة</p><h1 className="text-2xl font-black">لوحة الإدارة</h1></div>
         <Button variant="outline" size="icon" aria-label="تحديث البيانات" title="تحديث البيانات" disabled={refreshing} onClick={refresh}><RefreshCw className={refreshing ? "animate-spin" : ""} /></Button>
       </header>
       <dl className="grid grid-cols-2 gap-x-4 gap-y-5 border-b pb-6 md:grid-cols-4">
@@ -193,6 +196,7 @@ function AdminPage() {
           <TabsContent value="merchants" className="mt-0"><MerchantsPanel /></TabsContent>
           <TabsContent value="withdrawals" className="mt-0"><WithdrawalsPanel /></TabsContent>
           <TabsContent value="coupons" className="mt-0"><CouponManager scope="store" /></TabsContent>
+          <TabsContent value="brand" className="mt-0"><BrandSettings /></TabsContent>
           <TabsContent value="settings" className="mt-0"><DeliveryForm /></TabsContent>
         </div>
       </Tabs>

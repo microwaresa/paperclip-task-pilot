@@ -8,6 +8,7 @@ import { categories, fmt } from "@/lib/catalog";
 import { useCart } from "@/lib/cart";
 import { useAuth } from "@/hooks/use-auth";
 import { SellerBell } from "@/lib/seller-alerts";
+import { brandQuery } from "@/lib/settings.functions";
 import { supabase } from "@/integrations/supabase/client";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
@@ -20,6 +21,7 @@ export function SiteHeader({ initialQuery = "" }: { initialQuery?: string }) {
   const { count, favorites } = useCart();
   const { user } = useAuth();
   const checkAdmin = useServerFn(amIAdmin);
+  const brand = useQuery(brandQuery).data;
   const isAdmin = useQuery({ queryKey: ["am-i-admin", user?.id], queryFn: () => checkAdmin(), enabled: !!user }).data?.isAdmin;
 
   const onSearch = (e: FormEvent) => {
@@ -37,7 +39,7 @@ export function SiteHeader({ initialQuery = "" }: { initialQuery?: string }) {
   return (
     <header className="sticky top-0 z-30 bg-primary text-primary-foreground shadow-sm">
       <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-3">
-        <Link to="/" className="text-3xl font-black tracking-tight">سين<span className="text-accent">.</span></Link>
+        <Link to="/" className="text-3xl font-black tracking-tight">{brand?.storeName}<span className="text-accent">.</span></Link>
         <div className="hidden items-center gap-1 text-xs md:flex">
           <MapPin className="h-4 w-4" />
           <div><div className="opacity-70">التوصيل إلى</div><div className="font-bold">مصر</div></div>
@@ -77,7 +79,7 @@ export function SiteHeader({ initialQuery = "" }: { initialQuery?: string }) {
             <Link key={c.slug} to="/category/$slug" params={{ slug: c.slug }} className="whitespace-nowrap hover:text-accent" activeProps={{ className: "text-accent" }}>{c.name}</Link>
           ))}
           <Link to="/offers" className="whitespace-nowrap font-bold text-destructive">العروض</Link>
-          <Link to="/sell" className="whitespace-nowrap font-bold hover:text-accent">بِع على سين</Link>
+          <Link to="/sell" className="whitespace-nowrap font-bold hover:text-accent">بِع على {brand?.storeName}</Link>
           <Link to="/assistant" className="flex items-center gap-1 whitespace-nowrap text-accent"><Sparkles className="h-4 w-4" />مساعد التسوق</Link>
         </div>
       </nav>
