@@ -38,13 +38,13 @@ export function SiteHeader({ initialQuery = "" }: { initialQuery?: string }) {
 
   return (
     <header className="sticky top-0 z-30 bg-primary text-primary-foreground shadow-sm">
-      <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-3">
-        <Link to="/" className="text-3xl font-black tracking-tight">{brand?.storeName}<span className="text-accent">.</span></Link>
+      <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-3 px-4 py-3 sm:flex-nowrap sm:gap-4">
+        <Link to="/" className="min-w-0 flex-1 text-2xl font-black tracking-tight sm:flex-none sm:text-3xl">{brand?.storeName}<span className="text-accent">.</span></Link>
         <div className="hidden items-center gap-1 text-xs md:flex">
           <MapPin className="h-4 w-4" />
           <div><div className="opacity-70">التوصيل إلى</div><div className="font-bold">مصر</div></div>
         </div>
-        <form onSubmit={onSearch} role="search" className="flex flex-1 items-center rounded-md bg-card px-3">
+        <form onSubmit={onSearch} role="search" className="order-last flex min-w-0 basis-full items-center rounded-md bg-card px-3 sm:order-none sm:flex-1 sm:basis-auto">
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
@@ -57,7 +57,7 @@ export function SiteHeader({ initialQuery = "" }: { initialQuery?: string }) {
         <SellerBell />
         {user ? (
           <DropdownMenu dir="rtl">
-            <DropdownMenuTrigger className="hidden items-center gap-1 text-sm font-semibold sm:flex"><User className="h-5 w-5" />حسابي</DropdownMenuTrigger>
+            <DropdownMenuTrigger className="flex shrink-0 items-center gap-1 whitespace-nowrap text-sm font-semibold"><User className="h-5 w-5" />حسابي</DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuLabel className="max-w-56 truncate text-xs font-normal text-muted-foreground">{user.email}</DropdownMenuLabel>
               <DropdownMenuSeparator />
@@ -68,7 +68,7 @@ export function SiteHeader({ initialQuery = "" }: { initialQuery?: string }) {
             </DropdownMenuContent>
           </DropdownMenu>
         ) : (
-          <Link to="/auth" search={{ redirect: undefined }} className="hidden items-center gap-1 text-sm font-semibold sm:flex"><User className="h-5 w-5" />تسجيل الدخول</Link>
+          <Link to="/auth" search={{ redirect: undefined }} className="flex shrink-0 items-center gap-1 whitespace-nowrap text-sm font-semibold"><User className="h-5 w-5" />تسجيل الدخول</Link>
         )}
         <Link to="/favorites" aria-label="المفضلة" className="relative"><Heart className="h-6 w-6" />{favorites.length > 0 && <CountBadge n={favorites.length} />}</Link>
         <Link to="/cart" aria-label="العربة" className="relative"><ShoppingCart className="h-6 w-6" />{count > 0 && <CountBadge n={count} />}</Link>
