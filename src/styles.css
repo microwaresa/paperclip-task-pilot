@@ -116,6 +116,11 @@
   --sidebar-ring: var(--brand-ochre);
 }
 
+/* Hide the editor badge injected by the publishing host. */
+#lovable-badge {
+  display: none !important;
+}
+
 @layer base {
   * {
     border-color: var(--color-border);
